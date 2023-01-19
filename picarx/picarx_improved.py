@@ -1,20 +1,21 @@
-from robot_hat import Pin, PWM, Servo, fileDB
-from robot_hat import Grayscale_Module, Ultrasonic
-from robot_hat.utils import reset_mcu
 import time
 import os
+import logging
+from logdecorator import log_on_start , log_on_end , log_on_error
+import atexit
 
 try:
-    from ezblock import *
-    from ezblock import __reset_mcu__
+    from robot_hat import *
+    from robot_hat import __reset_mcu__
     __reset_mcu__()
     time.sleep(0.01)
 except ImportError:
-    print("This computer does not appera to be a PiCar-X system (ezblock is not present). Shadowing hardware calls with substitute functions")
-    from sim_ezblock import *
+    print("This computer does not appear to be a PiCar-X system (robot_hat is not present). Shadowing hardware calls with substitute functions")
+    from sim_robot_hat import *
 
-# reset_mcu()
-# time.sleep(0.2)
+logging_format = "%(asctime)s: %(message)s"
+logging.basicConfig(format=logging_format, level=logging.INFO, datefmt ="%H:%M:%S")
+logging.getLogger().setLevel(logging.DEBUG)
 
 # user and User home directory
 User = os.popen('echo ${SUDO_USER:-$LOGNAME}').readline().strip()
@@ -22,7 +23,6 @@ UserHome = os.popen('getent passwd %s | cut -d: -f 6'%User).readline().strip()
 # print(User)  # pi
 # print(UserHome) # /home/pi
 config_file = '%s/.config/picar-x/picar-x.conf'%UserHome
-
 
 class Picarx(object):
     PERIOD = 4095
@@ -34,6 +34,7 @@ class Picarx(object):
     # grayscale_pins: 3 adc channels
     # ultrasonic_pins: tring, echo
     # config: path of config file
+    @log_on_start(logging.DEBUG , "Intitializing picarx")
     def __init__(self, 
                 servo_pins:list=['P0', 'P1', 'P2'], 
                 motor_pins:list=['D4', 'D5', 'P12', 'P13'],
@@ -76,8 +77,12 @@ class Picarx(object):
         # usage: distance = self.ultrasonic.read()
         tring, echo= ultrasonic_pins
         self.ultrasonic = Ultrasonic(Pin(tring), Pin(echo))
-        
 
+        # stop motors upon shutdown
+        atexit.register(self.stop)
+        
+    @log_on_start(logging.DEBUG , "Setting motor speed: {speed}")
+    @log_on_end(logging.DEBUG , "Set motor speed ")
     def set_motor_speed(self,motor,speed):
         # global cali_speed_value,cali_dir_value
         motor -= 1
@@ -86,8 +91,8 @@ class Picarx(object):
         elif speed < 0:
             direction = -1 * self.cali_dir_value[motor]
         speed = abs(speed)
-        if speed != 0:
-            speed = int(speed /2 ) + 50
+        # if speed != 0:
+        #     speed = int(speed /2 ) + 50
         speed = speed - self.cali_speed_value[motor]
         if direction < 0:
             self.motor_direction_pins[motor].high()
@@ -145,7 +150,6 @@ class Picarx(object):
     def set_camera_servo2_angle(self,value):
         self.camera_servo_pin2.angle(-1*(value + -1*self.cam_cal_value_2))
 
-
     def set_power(self,speed):
         self.set_motor_speed(1, speed)
         self.set_motor_speed(2, speed) 
@@ -190,6 +194,7 @@ class Picarx(object):
             self.set_motor_speed(1, speed)
             self.set_motor_speed(2, -1*speed)                  
 
+    @log_on_start(logging.DEBUG, "Stopping motors")
     def stop(self):
         self.set_motor_speed(1, 0)
         self.set_motor_speed(2, 0)
@@ -205,7 +210,6 @@ class Picarx(object):
 
     def get_line_status(self,gm_val_list):
         return str(self.grayscale.get_line_status(gm_val_list))
-
 
 if __name__ == "__main__":
     px = Picarx()
