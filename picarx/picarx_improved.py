@@ -3,6 +3,7 @@ import os
 import logging
 from logdecorator import log_on_start , log_on_end , log_on_error
 import atexit
+import numpy as np
 
 try:
     from robot_hat import *
@@ -20,8 +21,6 @@ logging.getLogger().setLevel(logging.DEBUG)
 # user and User home directory
 User = os.popen('echo ${SUDO_USER:-$LOGNAME}').readline().strip()
 UserHome = os.popen('getent passwd %s | cut -d: -f 6'%User).readline().strip()
-# print(User)  # pi
-# print(UserHome) # /home/pi
 config_file = '%s/.config/picar-x/picar-x.conf'%UserHome
 
 class Picarx(object):
@@ -81,9 +80,10 @@ class Picarx(object):
         # stop motors upon shutdown
         atexit.register(self.stop)
         
-    @log_on_start(logging.DEBUG , "Setting motor speed: {speed}")
+    @log_on_start(logging.DEBUG , "Setting motor {motor} speed: {speed}")
     @log_on_end(logging.DEBUG , "Set motor speed ")
     def set_motor_speed(self,motor,speed):
+        ''' Inputs: motor (int, left = 1, right = 2), speed '''
         # global cali_speed_value,cali_dir_value
         motor -= 1
         if speed >= 0:
@@ -91,8 +91,6 @@ class Picarx(object):
         elif speed < 0:
             direction = -1 * self.cali_dir_value[motor]
         speed = abs(speed)
-        # if speed != 0:
-        #     speed = int(speed /2 ) + 50
         speed = speed - self.cali_speed_value[motor]
         if direction < 0:
             self.motor_direction_pins[motor].high()
@@ -154,6 +152,15 @@ class Picarx(object):
         self.set_motor_speed(1, speed)
         self.set_motor_speed(2, speed) 
 
+    def adjust_speed(self, steering_angle):
+        # car dimensions
+        length = 11.6
+        height = 9.5
+        # distance to instantaneous center of rotation, calculated with angles
+        icr_dist = np.tan(np.pi - steering_angle)*height + length/2
+        wheel_velocity_scale = (icr_dist - length/2) / length
+        return wheel_velocity_scale
+
     def backward(self,speed):
         current_angle = self.dir_current_angle
         if current_angle != 0:
@@ -161,14 +168,15 @@ class Picarx(object):
             # if abs_current_angle >= 0:
             if abs_current_angle > 40:
                 abs_current_angle = 40
-            power_scale = (100 - abs_current_angle) / 100.0 
-            # print("power_scale:",power_scale)
+            wheel_speed_adjust = self.adjust_speed(self, current_angle)
+            # if the car is pointed right, slow down the right wheel
             if (current_angle / abs_current_angle) > 0:
                 self.set_motor_speed(1, -1*speed)
-                self.set_motor_speed(2, speed * power_scale)
+                self.set_motor_speed(2, speed*wheel_speed_adjust)
+            # if the car is pointed left, slow down the left wheel
             else:
-                self.set_motor_speed(1, -1*speed * power_scale)
-                self.set_motor_speed(2, speed )
+                self.set_motor_speed(1, -1*speed*wheel_speed_adjust)
+                self.set_motor_speed(2, speed)
         else:
             self.set_motor_speed(1, -1*speed)
             self.set_motor_speed(2, speed)  
@@ -180,15 +188,16 @@ class Picarx(object):
             # if abs_current_angle >= 0:
             if abs_current_angle > 40:
                 abs_current_angle = 40
-            power_scale = (100 - abs_current_angle) / 100.0
-            # print("power_scale:",power_scale)
+            wheel_speed_adjust = self.adjust_speed(self, current_angle)
+            # if the car is pointed right, slow down the right wheel
             if (current_angle / abs_current_angle) > 0:
-                self.set_motor_speed(1, 1*speed * power_scale)
-                self.set_motor_speed(2, -speed) 
+                self.set_motor_speed(1, 1*speed)
+                self.set_motor_speed(2, -speed*wheel_speed_adjust) 
                 # print("current_speed: %s %s"%(1*speed * power_scale, -speed))
+            # if the car is pointed left, slow down the left wheel
             else:
-                self.set_motor_speed(1, speed)
-                self.set_motor_speed(2, -1*speed * power_scale)
+                self.set_motor_speed(1, speed*wheel_speed_adjust)
+                self.set_motor_speed(2, -1*speed)
                 # print("current_speed: %s %s"%(speed, -1*speed * power_scale))
         else:
             self.set_motor_speed(1, speed)
