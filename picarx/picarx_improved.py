@@ -4,6 +4,8 @@ import logging
 from logdecorator import log_on_start , log_on_end , log_on_error
 import atexit
 import numpy as np
+import sys
+sys.path.append('/home/ali_pi/robot-hat')
 
 try:
     from robot_hat import *
