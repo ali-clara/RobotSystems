@@ -1,5 +1,7 @@
 import time
 from picarx_improved import Picarx
+import sys
+sys.path.append(r'/robot-hat')
 
 px = Picarx()
 
@@ -9,4 +11,4 @@ def steering_calibration():
     time.sleep(3)
     px.stop()
 
-steering_calibration(0.5)
+steering_calibration()
