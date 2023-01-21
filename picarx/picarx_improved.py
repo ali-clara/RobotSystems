@@ -159,9 +159,9 @@ class Picarx(object):
         length = 11.6
         height = 9.5
         # distance to instantaneous center of rotation, calculated with angles
-        icr_dist = np.tan(np.pi - steering_angle)*height + length/2
+        icr_dist = np.tan(90 - steering_angle)*height + length/2
         wheel_velocity_scale = (icr_dist - length/2) / length
-        return wheel_velocity_scale
+        return abs(wheel_velocity_scale)
 
     def backward(self,speed):
         current_angle = self.dir_current_angle
@@ -170,7 +170,7 @@ class Picarx(object):
             # if abs_current_angle >= 0:
             if abs_current_angle > 40:
                 abs_current_angle = 40
-            wheel_speed_adjust = self.adjust_speed(self, current_angle)
+            wheel_speed_adjust = self.adjust_speed(current_angle)
             # if the car is pointed right, slow down the right wheel
             if (current_angle / abs_current_angle) > 0:
                 self.set_motor_speed(1, -1*speed)
@@ -190,7 +190,7 @@ class Picarx(object):
             # if abs_current_angle >= 0:
             if abs_current_angle > 40:
                 abs_current_angle = 40
-            wheel_speed_adjust = self.adjust_speed(self, current_angle)
+            wheel_speed_adjust = self.adjust_speed(current_angle)
             # if the car is pointed right, slow down the right wheel
             if (current_angle / abs_current_angle) > 0:
                 self.set_motor_speed(1, 1*speed)
