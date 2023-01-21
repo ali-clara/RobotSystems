@@ -12,3 +12,4 @@ def steering_calibration():
     px.stop()
 
 steering_calibration()
+print(sys.path)
