@@ -82,8 +82,7 @@ class Picarx(object):
         # stop motors upon shutdown
         atexit.register(self.stop)
         
-    @log_on_start(logging.DEBUG , "Setting motor {motor} speed: {speed}")
-    @log_on_end(logging.DEBUG , "Set motor speed ")
+    @log_on_end(logging.DEBUG , "Set motor {motor} speed: {speed}")
     def set_motor_speed(self,motor,speed):
         ''' Inputs: motor (int, left = 1, right = 2), speed '''
         # global cali_speed_value,cali_dir_value
@@ -129,6 +128,7 @@ class Picarx(object):
         self.config_flie.set("picarx_dir_servo", "%s"%value)
         self.dir_servo_pin.angle(value)
 
+    @log_on_end(logging.DEBUG , "Set steering angle: {value}")
     def set_dir_servo_angle(self,value):
         self.dir_current_angle = value
         angle_value  = value + self.dir_cal_value
@@ -171,7 +171,6 @@ class Picarx(object):
             if abs_current_angle > 40:
                 abs_current_angle = 40
             wheel_speed_adjust = self.adjust_speed(current_angle)
-            print(wheel_speed_adjust)
             # if the car is pointed right, slow down the right wheel
             if (current_angle / abs_current_angle) > 0:
                 self.set_motor_speed(1, -1*speed*wheel_speed_adjust)
@@ -192,7 +191,6 @@ class Picarx(object):
             if abs_current_angle > 40:
                 abs_current_angle = 40
             wheel_speed_adjust = self.adjust_speed(current_angle)
-            print(wheel_speed_adjust)
             # if the car is pointed right, slow down the right wheel
             if (current_angle / abs_current_angle) > 0:
                 self.set_motor_speed(1, 1*speed*wheel_speed_adjust)
