@@ -20,13 +20,23 @@ class FancyDancing(object):
     def forward_and_reverse(self):
         forward_angle = int(input("Set forward steering angle: "))
         backward_angle = int(input("Set reverse steering angle: "))
+
         px.set_dir_servo_angle(forward_angle)
         time.sleep(0.01)
-        px.forward(30)
+        px.forward(50)
+        time.sleep(5)
+        px.stop()
         time.sleep(0.01)
-        px.set_dir_servo_angle(-backward_angle)
+        px.set_dir_servo_angle(0)
+        time.sleep(0.25)
+
+        px.set_dir_servo_angle(backward_angle)
         time.sleep(0.01)
-        px.backward(30)
+        px.backward(50)
+        time.sleep(5)
+        px.stop()
+        time.sleep(0.01)
+        px.set_dir_servo_angle(0)
 
     def parallel_park(self):
         print("parallel park")
