@@ -171,6 +171,7 @@ class Picarx(object):
             if abs_current_angle > 40:
                 abs_current_angle = 40
             wheel_speed_adjust = self.adjust_speed(current_angle)
+            print(wheel_speed_adjust)
             # if the car is pointed right, slow down the right wheel
             if (current_angle / abs_current_angle) > 0:
                 self.set_motor_speed(1, -1*speed)
@@ -191,6 +192,7 @@ class Picarx(object):
             if abs_current_angle > 40:
                 abs_current_angle = 40
             wheel_speed_adjust = self.adjust_speed(current_angle)
+            print(wheel_speed_adjust)
             # if the car is pointed right, slow down the right wheel
             if (current_angle / abs_current_angle) > 0:
                 self.set_motor_speed(1, 1*speed)
