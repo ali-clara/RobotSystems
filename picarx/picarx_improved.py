@@ -159,8 +159,8 @@ class Picarx(object):
         length = 11.6
         height = 9.5
         # distance to instantaneous center of rotation, calculated with angles
-        icr_dist = np.tan(90 - steering_angle)*height + length/2
-        wheel_velocity_scale = (icr_dist - length/2) / length
+        icr_dist = np.tan(90 - abs(steering_angle))*height + length/2
+        wheel_velocity_scale = (icr_dist - length/2) / icr_dist
         return abs(wheel_velocity_scale)
 
     def backward(self,speed):
@@ -174,12 +174,12 @@ class Picarx(object):
             print(wheel_speed_adjust)
             # if the car is pointed right, slow down the right wheel
             if (current_angle / abs_current_angle) > 0:
-                self.set_motor_speed(1, -1*speed)
-                self.set_motor_speed(2, speed*wheel_speed_adjust)
-            # if the car is pointed left, slow down the left wheel
-            else:
                 self.set_motor_speed(1, -1*speed*wheel_speed_adjust)
                 self.set_motor_speed(2, speed)
+            # if the car is pointed left, slow down the left wheel
+            else:
+                self.set_motor_speed(1, -1*speed)
+                self.set_motor_speed(2, speed*wheel_speed_adjust)
         else:
             self.set_motor_speed(1, -1*speed)
             self.set_motor_speed(2, speed)  
@@ -195,13 +195,13 @@ class Picarx(object):
             print(wheel_speed_adjust)
             # if the car is pointed right, slow down the right wheel
             if (current_angle / abs_current_angle) > 0:
-                self.set_motor_speed(1, 1*speed)
-                self.set_motor_speed(2, -speed*wheel_speed_adjust) 
+                self.set_motor_speed(1, 1*speed*wheel_speed_adjust)
+                self.set_motor_speed(2, -speed) 
                 # print("current_speed: %s %s"%(1*speed * power_scale, -speed))
             # if the car is pointed left, slow down the left wheel
             else:
-                self.set_motor_speed(1, speed*wheel_speed_adjust)
-                self.set_motor_speed(2, -1*speed)
+                self.set_motor_speed(1, speed)
+                self.set_motor_speed(2, -1*speed*wheel_speed_adjust)
                 # print("current_speed: %s %s"%(speed, -1*speed * power_scale))
         else:
             self.set_motor_speed(1, speed)
