@@ -40,6 +40,8 @@ class FancyDancing(object):
         px.set_dir_servo_angle(0)
 
     def parallel_park_general(self, steering_angle, speed):
+        ''' Inputs: steering_angle (deg), speed (pwm?? 40 is a moderate speed)
+        Parallel parks in one direction given a steering angle and speed. Is called by parallel_park()'''
         px.set_dir_servo_angle(steering_angle)
         self.wait_between_commands
         px.backward(speed)
@@ -60,6 +62,8 @@ class FancyDancing(object):
             self.parallel_park_general(-20, 40)
 
     def k_turn_general(self, steering_angle, speed):
+        ''' Inputs: steering_angle (deg), speed (pwm?? 40 is a moderate speed)
+        Performs a k-turn in one direction given a steering angle and speed. Is called by k_turn()'''
         px.set_dir_servo_angle(steering_angle)
         self.wait_between_commands
         px.forward(speed)
