@@ -63,21 +63,26 @@ class FancyDancing(object):
         px.set_dir_servo_angle(steering_angle)
         self.wait_between_commands
         px.forward(speed)
-        time.sleep(2)
+        time.sleep(2.95)
         px.stop()
         self.wait_between_commands
         px.set_dir_servo_angle(-steering_angle)
         self.wait_between_commands
         px.backward(speed)
-        time.sleep(2)
+        time.sleep(2.95)
+        px.set_dir_servo_angle(steering_angle)
+        self.wait_between_commands
+        px.forward(speed)
+        time.sleep(2.95)
+        px.stop()
         px.set_dir_servo_angle(0)
         self.wait_between_commands
         px.forward(speed)
-        time.sleep(2)
+        time.sleep(3.5)
         px.stop()
-    
+        
     def k_turn(self):
-        direction = input("Enter direction ('right' or 'left'): ")
+        direction = input("Enter initial turn direction ('right' or 'left'): ")
         if direction == "right":
             self.k_turn_general(20, 40)
         else:
