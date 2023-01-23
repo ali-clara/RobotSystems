@@ -18,26 +18,41 @@ class FancyDancing(object):
         time.sleep(t)
         px.stop()
     
-    def forward_and_reverse(self):
-        forward_angle = int(input("Set forward steering angle: "))
-        backward_angle = int(input("Set reverse steering angle: "))
-
-        px.set_dir_servo_angle(forward_angle)
+    def drive_forward(self, t, speed, steering_angle):
+        px.set_dir_servo_angle(steering_angle)
         self.wait_between_commands
-        px.forward(50)
-        time.sleep(5)
+        px.forward(speed)
+        time.sleep(t)
         px.stop()
         self.wait_between_commands
         px.set_dir_servo_angle(0)
         time.sleep(0.25)
 
-        px.set_dir_servo_angle(backward_angle)
+    def drive_reverse(self, t, speed, steering_angle):
+        px.set_dir_servo_angle(steering_angle)
         self.wait_between_commands
-        px.backward(50)
-        time.sleep(5)
+        px.backward(speed)
+        time.sleep(t)
         px.stop()
         self.wait_between_commands
         px.set_dir_servo_angle(0)
+    
+    def forward_and_reverse(self):
+        '''No inputs. Asks user for steering angles and drives forward and backward at those angles'''
+        # get user input
+        try:
+            forward_angle = int(input("Enter forward steering angle (-30 to 30 deg): "))
+            backward_angle = int(input("Enter reverse steering angle (-30 to 30 deg): "))
+        except:
+            forward_angle = 0
+            backward_angle = 0
+            print("Error in input, defaulted to 0 degrees")
+        
+        # drive forward and back at set angle and speed for time
+        t = 5
+        speed = 50
+        self.drive_forward(t, speed, forward_angle)
+        self.drive_reverse(t, speed, backward_angle)
 
     def parallel_park_general(self, steering_angle, speed):
         ''' Inputs: steering_angle (deg), speed (pwm?? 40 is a moderate speed)
@@ -58,8 +73,10 @@ class FancyDancing(object):
         direction = input("Enter direction ('right' or 'left'): ")
         if direction == "right":
             self.parallel_park_general(20, 40)
-        else:
+        elif direction == "left":
             self.parallel_park_general(-20, 40)
+        else:
+            print("Please enter a direction")
 
     def k_turn_general(self, steering_angle, speed):
         ''' Inputs: steering_angle (deg), speed (pwm?? 40 is a moderate speed)
@@ -89,10 +106,13 @@ class FancyDancing(object):
         direction = input("Enter initial turn direction ('right' or 'left'): ")
         if direction == "right":
             self.k_turn_general(20, 40)
-        else:
+        elif direction == "left":
             self.k_turn_general(-20, 40)
+        else:
+            print("Please enter an initial direction")
 
     def exit_program(self):
+        # exits the user interface
         self.exit_var = 1
 
     def user_interface(self):
