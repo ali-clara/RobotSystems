@@ -1,9 +1,9 @@
 import time
-from picarx_improved import Picarx
+from motors import Motors
 import sys
 sys.path.append('/home/ali_pi/robot-hat')
 
-px = Picarx()
+px = Motors()
 
 class FancyDancing(object):
 
