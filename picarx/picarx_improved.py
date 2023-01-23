@@ -8,7 +8,7 @@ import sys
 sys.path.append('/home/ali_pi/robot-hat/robot_hat')
 
 from motors import Motors
-from picarx.sensors import Sensors
+from sensors import Sensors
 try:
     from robot_hat import *
     from robot_hat import reset_mcu
