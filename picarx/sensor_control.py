@@ -55,9 +55,9 @@ class Interpretor(object):
         self.rel_position = 0
 
     def dark_line(self, left_val, middle_val, right_val):
-        similar_threshold = 30
-        different_threshold = 60
-        dark_threshold = 100
+        similar_threshold = 70
+        different_threshold = 100
+        dark_threshold = 200
 
         # if left and middle have similar readings and are OFF the line (needs to turn hard right)
         if np.isclose(left_val, middle_val, atol=similar_threshold) and (left_val - right_val) > different_threshold:
@@ -104,6 +104,7 @@ class Controller(object):
     def line_following(self, line_offset):
         steering_angle = line_offset*self.steering_offset
         mtrs.set_dir_servo_angle(steering_angle)
+        time.sleep(0.01)
         return steering_angle
 
 if __name__== "__main__":
