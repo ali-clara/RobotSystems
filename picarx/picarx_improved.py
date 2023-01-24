@@ -8,7 +8,7 @@ import sys
 sys.path.append('/home/ali_pi/robot-hat/robot_hat')
 
 from motors import Motors
-from sensors import Sensors
+from sensor_control import Sensor, Interpretor, Controller
 try:
     from robot_hat import *
     from robot_hat import reset_mcu
@@ -43,18 +43,6 @@ class Picarx(object):
         # stop motors upon shutdown
         atexit.register(self.stop)  
                   
-    def get_distance(self):
-        return self.ultrasonic.read()
-
-    def set_grayscale_reference(self, value):
-        self.get_grayscale_reference = value
-        
-    def get_grayscale_data(self):
-        return list.copy(self.grayscale.get_grayscale_data())
-
-    def get_line_status(self,gm_val_list):
-        return str(self.grayscale.get_line_status(gm_val_list))
-
 if __name__ == "__main__":
     px = Picarx()
     px.forward(50)
