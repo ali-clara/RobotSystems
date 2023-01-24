@@ -57,6 +57,7 @@ class Interpretor(object):
     def dark_line(self, left_val, middle_val, right_val):
         similar_threshold = 30
         different_threshold = 60
+        dark_threshold = 100
 
         # if left and middle have similar readings and are OFF the line (needs to turn hard right)
         if np.isclose(left_val, middle_val, atol=similar_threshold) and abs(left_val - right_val) > different_threshold:
@@ -76,7 +77,11 @@ class Interpretor(object):
         # elif abs(right - middle) < similar_threshold and abs(left - right) > different_threshold:
             self.state = "right"
             self.rel_position = -2/3
-
+        # if centered
+        elif np.isclose(right_val, left_val, atol=similar_threshold) and right_val < dark_threshold:
+            self.state = "middle"
+            self.rel_position = 0
+        
     def light_line(self, left_val, middle_val, right_val):
         pass
     
@@ -110,5 +115,5 @@ if __name__== "__main__":
         gm_val_list = snsr.sense_line()
         line_offset, state = intr.processing(gm_val_list)
         steering_angle = ctrl.line_following(line_offset)
-        print(gm_val_list, line_offset, steering_angle)
+        print(gm_val_list, state, steering_angle)
     
