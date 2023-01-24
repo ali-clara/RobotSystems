@@ -1,14 +1,10 @@
 import time
-<<<<<<< HEAD
 from motors import Motors
 import atexit
-=======
-from picarx_improved import Picarx
->>>>>>> parent of f2889ed (updated fancy_dancing to call motor script)
 import sys
 sys.path.append('/home/ali_pi/robot-hat')
 
-px = Picarx()
+px = Motors()
 
 class FancyDancing(object):
 
@@ -84,28 +80,36 @@ class FancyDancing(object):
         else:
             print("Please enter a direction")
 
-    def k_turn_general(self, steering_angle, speed, t=2.95):
-        ''' Inputs: steering_angle (deg), speed (pwm?? 40 is a moderate speed), t (time to execute each maneuver)
+    def k_turn_general(self, speed, steering_angle):
+        ''' Inputs: steering_angle (deg), speed (pwm?? 40 is a moderate speed)
         Performs a k-turn in one direction given a steering angle and speed. Is called by k_turn()'''
         px.set_dir_servo_angle(steering_angle)
         self.wait_between_commands
         px.forward(speed)
-        time.sleep(t)
+        time.sleep(2.95)
         px.stop()
         self.wait_between_commands
+        px.set_dir_servo_angle(-steering_angle)
+        self.wait_between_commands
+        px.backward(speed)
+        time.sleep(2.95)
+        px.set_dir_servo_angle(steering_angle)
+        self.wait_between_commands
+        px.forward(speed)
+        time.sleep(2.95)
+        px.stop()
+        px.set_dir_servo_angle(0)
+        self.wait_between_commands
+        px.forward(speed)
+        time.sleep(3.5)
+        px.stop()
         
     def k_turn(self):
         direction = input("Enter initial turn direction ('right' or 'left'): ")
         if direction == "right":
-            self.k_turn_general(20, 40)
-            self.k_turn_general(-20, 40)
-            self.k_turn_general(20, 40)
-            self.k_turn_general(0, 40)
+            self.k_turn_general(40, 20)
         elif direction == "left":
-            self.k_turn_general(-20, 40)
-            self.k_turn_general(20, 40)
-            self.k_turn_general(-20, 40)
-            self.k_turn_general(0, 40)
+            self.k_turn_general(40, -20)
         else:
             print("Please enter an initial direction")
 
