@@ -118,7 +118,7 @@ class Motors(object):
             self.motor_direction_pins[motor].low()
             self.motor_speed_pins[motor].pulse_width_percent(speed)
 
-    @log_on_end(logging.DEBUG , "Set steering angle: {value}")
+    #@log_on_end(logging.DEBUG , "Set steering angle: {value}")
     def set_dir_servo_angle(self,value):
         '''Inputs: steering_angle (deg)'''
         self.dir_current_angle = value
