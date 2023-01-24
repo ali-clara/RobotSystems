@@ -1,10 +1,14 @@
 import time
+<<<<<<< HEAD
 from motors import Motors
 import atexit
+=======
+from picarx_improved import Picarx
+>>>>>>> parent of f2889ed (updated fancy_dancing to call motor script)
 import sys
 sys.path.append('/home/ali_pi/robot-hat')
 
-px = Motors()
+px = Picarx()
 
 class FancyDancing(object):
 
