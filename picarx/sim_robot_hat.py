@@ -192,8 +192,6 @@ class Grayscale_Module(object):
     def get_grayscale_data(self):
         return [80, 72, 30]
 
-    
-
 
 
 
