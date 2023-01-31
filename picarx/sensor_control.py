@@ -50,8 +50,8 @@ class Sensor(object):
         #print("gm_val_list: %s, %s"%(gm_val_list, gm_state))
         return(gm_val_list)
 
-    @log_on_start("Starting camera")
-    @log_on_end("Quitting camera")
+    @log_on_start(logging.DEBUG, "Starting camera")
+    @log_on_end(logging.DEBUG, "Quitting camera")
     def stream_camera(self):
         with PiCamera() as camera:
             camera.resolution = (640,480)
