@@ -1,15 +1,24 @@
 import time
 import numpy as np
+import cv2
+import logging
+from logdecorator import log_on_start , log_on_end , log_on_error
 from motors import Motors
 
 try:
     from robot_hat import *
     from robot_hat import reset_mcu
+    from picamera.array import PiRGBArray
+    from picamera import PiCamera
     reset_mcu()
     time.sleep(0.01)
 except ImportError:
     print("This computer does not appear to be a PiCar-X system (robot_hat is not present). Shadowing hardware calls with substitute functions")
     from sim_robot_hat import *
+
+logging_format = "%(asctime)s: %(message)s"
+logging.basicConfig(format=logging_format, level=logging.INFO, datefmt ="%H:%M:%S")
+logging.getLogger().setLevel(logging.DEBUG)
 
 class Sensor(object):
     def __init__(self,
@@ -41,6 +50,28 @@ class Sensor(object):
         #print("gm_val_list: %s, %s"%(gm_val_list, gm_state))
         return(gm_val_list)
 
+    @log_on_start("Starting camera")
+    @log_on_end("Quitting camera")
+    def stream_camera(self):
+        with PiCamera() as camera:
+            camera.resolution = (640,480)
+            camera.framerate = 24
+            rawCapture = PiRGBArray(camera, size=camera.resolution)  
+            time.sleep(2)
+
+            for frame in camera.capture_continuous(rawCapture, format="bgr",use_video_port=True):
+                img = frame.array
+                cv2.imshow("video", img)    
+                rawCapture.truncate(0)   # Release cache
+            
+                k = cv2.waitKey(1) & 0xFF
+                # 27 is the ESC key, which means that if you press the ESC key to exit
+                if k == 27:
+                    break
+
+            cv2.destroyAllWindows()
+            camera.close()  
+
 class Interpretor(object):
     def __init__(self, 
                 sensitivity = 0.5,
@@ -53,10 +84,21 @@ class Interpretor(object):
         # [-1,1] relative numeric position of the robot relative to the line, where 0 is centered and -1 is off the line to the right
         self.rel_position = 0
 
+        self.calibration_param = None
+
+    def calibrate_grayscale(self, gm_val_list):
+        self.calibration_param = np.mean(gm_val_list)
+        
     def dark_line(self, left_val, middle_val, right_val):
-        similar_threshold = 50
-        different_threshold = 80
-        dark_threshold = 200
+        similar_threshold = 0.3
+        different_threshold = 0.8
+        dark_threshold = 1
+
+        left_val /= self.calibration_param
+        right_val /= self.calibration_param
+        middle_val /= self.calibration_param
+
+        print(left_val, middle_val, right_val)
 
         # if left and middle have similar readings and are OFF the line (needs to turn hard right)
         if np.isclose(left_val, middle_val, atol=similar_threshold) and (left_val - right_val) > different_threshold:
@@ -114,12 +156,16 @@ if __name__== "__main__":
     intr = Interpretor()
     ctrl = Controller()
 
-    while True:
-        mtrs.forward(20)
-        gm_val_list = snsr.sense_line()
-        line_offset, state = intr.processing(gm_val_list)
-        steering_angle = ctrl.line_following(line_offset)
-        print(gm_val_list, state, steering_angle)
+    snsr.stream_camera()
+
+    # intr.calibrate_grayscale(snsr.get_grayscale_data())
+
+    # while True:
+    #     mtrs.forward(20)
+    #     gm_val_list = snsr.sense_line()
+    #     line_offset, state = intr.processing(gm_val_list)
+    #     steering_angle = ctrl.line_following(line_offset)
+    #     print(gm_val_list, state, steering_angle)
         #if intr.state == "off":
            #mtrs.stop()
            #time.sleep(1)

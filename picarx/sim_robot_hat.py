@@ -190,7 +190,7 @@ class Grayscale_Module(object):
         return 'stop'
 
     def get_grayscale_data(self):
-        return [1, 1, 1]
+        return [80, 72, 30]
 
     
 
