@@ -1,4 +1,5 @@
 import time
+import cv2
 import logging
 from logdecorator import log_on_start , log_on_end , log_on_error
 
@@ -50,7 +51,7 @@ class Sensor(object):
         return(gm_val_list)
 
     ######## CAMERA ########
-    @log_on_start(logging.DEBUG, "Starting camera ('esc' to quit")
+    @log_on_start(logging.DEBUG, "Starting camera ('esc' to quit)")
     @log_on_end(logging.DEBUG, "Quitting camera")
     def stream_camera(self):
         with PiCamera() as camera:

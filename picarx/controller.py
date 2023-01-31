@@ -35,15 +35,15 @@ class Controller(object):
         mtrs.set_dir_servo_angle(steering_angle)
         
         print(gm_val_list, state, steering_angle)
-        if intr.state == "off":
-            mtrs.stop()
-            time.sleep(1)
+       # if intr.state == "off":
+       #     mtrs.stop()
+       #     time.sleep(1)
 
 if __name__== "__main__":
-    snsr.stream_camera()
-    # ctrl = Controller()
-    # while True:
-    #     ctrl.line_following()
+   # snsr.stream_camera()
+     ctrl = Controller()
+     while True:
+         ctrl.line_following()
 
     # intr.calibrate_grayscale(snsr.get_grayscale_data())
 
