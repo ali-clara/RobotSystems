@@ -64,7 +64,8 @@ class Sensor(object):
             for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
                 img = frame.array
                 img_2 = self.camera_processing(img)
-                cv2.imshow(img_2, "mask")
+                cv2.imshow("raw", img)
+                cv2.imshow("mask", img_2)
                 rawCapture.truncate(0)   # Release cache
             
                 k = cv2.waitKey(1) & 0xFF
@@ -82,4 +83,8 @@ class Sensor(object):
         mask = cv2.inRange(hsv, lower_blue, upper_blue)
         return mask
 
-            
+if __name__ == "__main__":
+    from sensor import Sensor
+    snsr = Sensor()
+    
+    snsr.stream_camera()            
