@@ -64,24 +64,47 @@ class Sensor(object):
             for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
                 img = frame.array
                 img_2 = self.camera_processing(img)
-                cv2.imshow("raw", img)
-                cv2.imshow("mask", img_2)
+
+                display = cv2.hconcat([img, img_2])
+
+                # cv2.imshow("raw", img)
+                # cv2.imshow("mask", img_2)
+                cv2.imshow(display)
                 rawCapture.truncate(0)   # Release cache
             
                 k = cv2.waitKey(1) & 0xFF
-                # 27 is the ESC key, which means that if you press the ESC key to exit
+                # 27 is the ESC key
                 if k == 27:
                     break
 
             cv2.destroyAllWindows()
             camera.close()  
 
+    def region_of_interest(self, edges):
+        height, width = edges.shape
+        mask = np.zeros_like(edges)
+
+        # only focus bottom half of the screen
+        polygon = np.array([[
+            (0, height * 1 / 2),
+            (width, height * 1 / 2),
+            (width, height),
+            (0, height),
+        ]], np.int32)
+
+        cv2.fillPoly(mask, polygon, 255)
+        cropped_edges = cv2.bitwise_and(edges, mask)
+        return cropped_edges
+    
     def camera_processing(self, img):
+        """Takes in frame from Pi camera and applies masking and edge detection"""
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         lower_blue = np.array([60, 40, 40])
         upper_blue = np.array([150, 255, 255])
         mask = cv2.inRange(hsv, lower_blue, upper_blue)
-        return mask
+        edges = cv2.Canny(mask, 200, 400)
+        edges = self.region_of_interest(edges)
+        return edges
 
 if __name__ == "__main__":
     from sensor import Sensor
