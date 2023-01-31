@@ -65,11 +65,11 @@ class Sensor(object):
                 img = frame.array
                 img_2 = self.camera_processing(img)
 
-                display = cv2.hconcat([img, img_2])
+                #display = cv2.hconcat([img, img_2])
 
-                # cv2.imshow("raw", img)
-                # cv2.imshow("mask", img_2)
-                cv2.imshow(display)
+                cv2.imshow("raw", img)
+                cv2.imshow("mask", img_2)
+                #cv2.imshow(display)
                 rawCapture.truncate(0)   # Release cache
             
                 k = cv2.waitKey(1) & 0xFF
