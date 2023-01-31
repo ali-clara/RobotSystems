@@ -53,7 +53,7 @@ class Sensor(object):
     ######## CAMERA ########
     @log_on_start(logging.DEBUG, "Starting camera ('esc' to quit)")
     @log_on_end(logging.DEBUG, "Quitting camera")
-    def stream_camera(self):
+    def stream_camera(self, img_2=None):
         with PiCamera() as camera:
             camera.resolution = (640,480)
             camera.framerate = 24
@@ -63,7 +63,6 @@ class Sensor(object):
             for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
                 img = frame.array
                 # call image processing here
-                cv2.imshow("video", img)    
                 rawCapture.truncate(0)   # Release cache
             
                 k = cv2.waitKey(1) & 0xFF
@@ -71,5 +70,9 @@ class Sensor(object):
                 if k == 27:
                     break
 
+                return img
+
             cv2.destroyAllWindows()
             camera.close()  
+
+            

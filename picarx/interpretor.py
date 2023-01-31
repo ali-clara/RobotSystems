@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 
 class Interpretor(object):
     def __init__(self, 
@@ -33,7 +34,7 @@ class Interpretor(object):
         right_val /= self.calibration_param
         middle_val /= self.calibration_param
 
-        print(left_val, middle_val, right_val)
+        # print(left_val, middle_val, right_val)
 
         # if left and middle have similar readings and are OFF the line (needs to turn hard right)
         if np.isclose(left_val, middle_val, atol=similar_threshold) and (left_val - right_val) > different_threshold:
@@ -74,14 +75,22 @@ class Interpretor(object):
         return(self.rel_position, self.state)
 
     def camera_processing(self, img):
-        pass
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        lower_blue = np.array([60, 40, 40])
+        upper_blue = np.array([150, 255, 255])
+        mask = cv2.inRange(hsv, lower_blue, upper_blue)
 
+        cv2.imshow("video", mask)    
 
 if __name__ == "__main__":
     from sensor import Sensor
     snsr = Sensor()
     intr = Interpretor()
 
-    gm_val_list = snsr.sense_line()
-    print(gm_val_list)
-    intr.grayscale_processing(gm_val_list)
+    # line following data test
+    # gm_val_list = snsr.sense_line()
+    # print(gm_val_list)
+    # intr.grayscale_processing(gm_val_list)
+
+    img = snsr.stream_camera()
+    intr.camera_processing(img)

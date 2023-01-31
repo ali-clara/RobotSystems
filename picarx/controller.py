@@ -12,7 +12,7 @@ try:
     from picamera import PiCamera
     time.sleep(0.01)
 except ImportError:
-    print("This computer does not appear to be a PiCar-X system (PiCamera not present). Shadowing hardware calls with substitute functions")
+    print("PiCamera not present, not a picar-x system")
     from sim_robot_hat import *
 
 logging_format = "%(asctime)s: %(message)s"
@@ -41,11 +41,9 @@ class Controller(object):
 
 if __name__== "__main__":
    # snsr.stream_camera()
-     ctrl = Controller()
-     while True:
-         ctrl.line_following()
-
-    # intr.calibrate_grayscale(snsr.get_grayscale_data())
+    ctrl = Controller()
+    while True:
+        ctrl.line_following()
 
     
     
