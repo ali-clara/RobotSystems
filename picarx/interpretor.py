@@ -73,14 +73,7 @@ class Interpretor(object):
             self.light_line(gm_val_list)
 
         return(self.rel_position, self.state)
-
-    def camera_processing(self, img):
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        lower_blue = np.array([60, 40, 40])
-        upper_blue = np.array([150, 255, 255])
-        mask = cv2.inRange(hsv, lower_blue, upper_blue)
-
-        cv2.imshow("video", mask)    
+   
 
 if __name__ == "__main__":
     from sensor import Sensor
@@ -92,5 +85,4 @@ if __name__ == "__main__":
     # print(gm_val_list)
     # intr.grayscale_processing(gm_val_list)
 
-    img = snsr.stream_camera()
-    intr.camera_processing(img)
+    snsr.stream_camera()

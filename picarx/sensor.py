@@ -1,4 +1,5 @@
 import time
+import numpy as np
 import cv2
 import logging
 from logdecorator import log_on_start , log_on_end , log_on_error
@@ -62,7 +63,8 @@ class Sensor(object):
 
             for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
                 img = frame.array
-                # call image processing here
+                img_2 = self.camera_processing(img)
+                cv2.imshow(img_2, "mask")
                 rawCapture.truncate(0)   # Release cache
             
                 k = cv2.waitKey(1) & 0xFF
@@ -70,9 +72,14 @@ class Sensor(object):
                 if k == 27:
                     break
 
-                return img
-
             cv2.destroyAllWindows()
             camera.close()  
+
+    def camera_processing(self, img):
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        lower_blue = np.array([60, 40, 40])
+        upper_blue = np.array([150, 255, 255])
+        mask = cv2.inRange(hsv, lower_blue, upper_blue)
+        return mask
 
             
