@@ -81,13 +81,14 @@ class Sensor(object):
             camera.close()  
 
     def region_of_interest(self, edges):
+        """Takes in an image and removes the top half"""
         height, width = edges.shape
         mask = np.zeros_like(edges)
 
         # only focus bottom half of the screen
         polygon = np.array([[
-            (0, height * 1 / 2),
-            (width, height * 1 / 2),
+            (0, height / 2),
+            (width, height / 2),
             (width, height),
             (0, height),
         ]], np.int32)
@@ -103,8 +104,8 @@ class Sensor(object):
         upper_blue = np.array([150, 255, 255])
         mask = cv2.inRange(hsv, lower_blue, upper_blue)
         edges = cv2.Canny(mask, 200, 400)
-        edges = self.region_of_interest(edges)
-        return edges
+        cropped_edges = self.region_of_interest(edges)
+        return cropped_edges
 
 if __name__ == "__main__":
     from sensor import Sensor
