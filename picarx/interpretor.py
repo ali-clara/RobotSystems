@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import time
 
 class Interpretor(object):
     def __init__(self, 
@@ -7,28 +8,39 @@ class Interpretor(object):
                 polarity = 1):
         ''' inputs: sensitivity (???), polarity (0- light line, 1- dark line)'''
 
+        self.calibration_param = None
         self.polarity = polarity
         # position of the robot relative to the line ('left', 'right', or 'centered')
         self.state = None
-        # [-1,1] relative numeric position of the robot relative to the line, where 0 is centered and -1 is off the line to the right
         self.rel_position = 0
+        self.gs_val_list = None
 
-        self.calibration_param = None
-
-    def calibrate_grayscale(self, gm_val_list):
-        self.calibration_param = np.mean(gm_val_list)
+    def line_consumer_producer(self, gs_bus, camera_bus, line_interp_bus, delay):
+        """Reads raw data from gs_ and camera_bus, writes interpreted values to 
+            line_interp_bus
+            Written message: [-1,1] relative numeric position of the robot relative to the line, 
+                where 0 is centered and -1 is off the line to the right"""
+        # while True:
+        camera_message = camera_bus.read()
+        self.gs_val_list = gs_bus.read()
+        self.grayscale_processing()
+        line_interp_bus.write(self.rel_position)
+        time.sleep(delay)
+    
+    def calibrate_grayscale(self):
+        self.calibration_param = np.mean(self.gs_val_list)
         
-    def dark_line(self, gm_val_list):
+    def dark_line(self):
 
-        self.calibrate_grayscale(gm_val_list)
+        self.calibrate_grayscale()
 
         similar_threshold = 0.3
         different_threshold = 0.8
         dark_threshold = 1
 
-        left_val = gm_val_list[0]
-        middle_val = gm_val_list[1]
-        right_val = gm_val_list[2]
+        left_val = self.gs_val_list[0]
+        middle_val = self.gs_val_list[1]
+        right_val = self.gs_val_list[2]
 
         left_val /= self.calibration_param
         right_val /= self.calibration_param
@@ -62,17 +74,17 @@ class Interpretor(object):
             self.state = "off"
             self.rel_position = 0
         
-    def light_line(self, gm_val_list):
+    def light_line(self):
         pass
     
-    def grayscale_processing(self, gm_val_list):
+    def grayscale_processing(self):
 
         if self.polarity == 1:
-            self.dark_line(gm_val_list)
+            self.dark_line()
         elif self.polarity == 0:
-            self.light_line(gm_val_list)
+            self.light_line()
 
-        return(self.rel_position, self.state)
+        # return(self.rel_position, self.state)
    
 
 if __name__ == "__main__":

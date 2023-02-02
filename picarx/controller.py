@@ -7,14 +7,6 @@ from motors import Motors
 from sensor import Sensor
 from interpretor import Interpretor
 
-try:
-    from picamera.array import PiRGBArray
-    from picamera import PiCamera
-    time.sleep(0.01)
-except ImportError:
-    print("PiCamera not present, not a picar-x system")
-    from sim_robot_hat import *
-
 logging_format = "%(asctime)s: %(message)s"
 logging.basicConfig(format=logging_format, level=logging.INFO, datefmt ="%H:%M:%S")
 logging.getLogger().setLevel(logging.DEBUG)
@@ -26,15 +18,23 @@ intr = Interpretor()
 class Controller(object):
     def __init__(self, steering_offset=30):
         self.steering_offset = steering_offset
+        self.line_offset = None
+
+    def controller_consumer(self, line_interp_bus, sonar_bus, delay):
+        """Reads data from line_interp_bus and sonar_bus,
+            uses those values to set motor and servo commands"""
+        # while True:
+        sonar_message = sonar_bus.read()
+        self.line_offset = line_interp_bus.read()
+        self.line_following()
+        time.sleep(delay)
 
     def line_following(self):
-        mtrs.forward(20)
-        gm_val_list = snsr.sense_line()
-        line_offset, state = intr.grayscale_processing(gm_val_list)
-        steering_angle = line_offset*self.steering_offset
+        steering_angle = self.line_offset*self.steering_offset
         mtrs.set_dir_servo_angle(steering_angle)
+        mtrs.forward(20)
         
-        print(gm_val_list, state, steering_angle)
+        # print(gm_val_list, state, steering_angle)
        # if intr.state == "off":
        #     mtrs.stop()
        #     time.sleep(1)
