@@ -4,21 +4,17 @@ import cv2
 import logging
 from logdecorator import log_on_start , log_on_end , log_on_error
 from motors import Motors
-from sensor import Sensor
-from interpretor import Interpretor
 
 logging_format = "%(asctime)s: %(message)s"
 logging.basicConfig(format=logging_format, level=logging.INFO, datefmt ="%H:%M:%S")
 logging.getLogger().setLevel(logging.DEBUG)
 
-mtrs = Motors()
-snsr = Sensor()
-intr = Interpretor()
 
 class Controller(object):
     def __init__(self, steering_offset=30):
         self.steering_offset = steering_offset
         self.line_offset = None
+        self.mtrs = Motors()
 
     def controller_consumer(self, line_interp_bus, sonar_bus, delay):
         """Reads data from line_interp_bus and sonar_bus,
@@ -31,8 +27,8 @@ class Controller(object):
 
     def line_following(self):
         steering_angle = self.line_offset*self.steering_offset
-        mtrs.set_dir_servo_angle(steering_angle)
-        mtrs.forward(20)
+        self.mtrs.set_dir_servo_angle(steering_angle)
+        self.mtrs.forward(20)
         
         # print(gm_val_list, state, steering_angle)
        # if intr.state == "off":
