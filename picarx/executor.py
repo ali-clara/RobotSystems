@@ -4,7 +4,6 @@ from sensor import Sensor
 from interpretor import Interpretor
 from controller import Controller
 
-
 class Bus():
     def __init__(self):
         self.message = None

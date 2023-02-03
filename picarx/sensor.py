@@ -27,24 +27,27 @@ class Sensor(object):
         # grayscale module init
         adc0, adc1, adc2 = grayscale_pins
         self.grayscale = Grayscale_Module(adc0, adc1, adc2, reference=1000)
+        self.gs_val_list = None
+        self.gs_state = None
         # ultrasonic init
         tring, echo= ultrasonic_pins
         self.ultrasonic = Ultrasonic(Pin(tring), Pin(echo))
+        self.sonar_distance = None
 
     def grayscale_producer(self, gs_bus, delay):
         """Writes data from grayscale sensors to gs_bus.
             Args - gs_bus (Bus() object), delay (time delay, sec).
             Message: [raw_value_left, raw_value_center, raw_value_right]"""
-        gs_message = self.sense_line()
-        gs_bus.write(gs_message)
+        self.sense_line()
+        gs_bus.write(self.gs_val_list)
         time.sleep(delay)
 
     def sonar_producer(self, sonar_bus, delay):
         """Writes sonar data to sonar_bus
             Args - sonar_bus (Bus() object), delay (time delay, sec).
             Message: raw_value (float?)"""
-        sonar_message = self.get_distance()
-        sonar_bus.write(sonar_message)
+        self.get_distance()
+        sonar_bus.write(self.sonar_distance)
         time.sleep(delay)
     
     def camera_producer(self, camera_bus, delay):
@@ -57,8 +60,7 @@ class Sensor(object):
     def get_distance(self):
         """SONAR, returns data from ultrasonic sensors.
             Returns - distance (unit ??)"""
-        dist = self.ultrasonic.read()
-        return dist
+        self.sonar_distance = self.ultrasonic.read()
 
     ######## GRAYSCALE ########
     def set_grayscale_reference(self, value):
@@ -69,16 +71,14 @@ class Sensor(object):
         """GS, returns raw data from grayscale sensors"""
         return list.copy(self.grayscale.get_grayscale_data())
 
-    def get_line_status(self,gm_val_list):
+    def get_line_status(self):
         """GS"""
-        return str(self.grayscale.get_line_status(gm_val_list))
+        return str(self.grayscale.get_line_status(self.gs_val_list))
 
     def sense_line(self):
         """GS"""
-        gm_val_list = self.get_grayscale_data()
-        gm_state = self.get_line_status(gm_val_list)
-        # print("gm_val_list: %s, %s"%(gm_val_list, gm_state))
-        return gm_val_list
+        self.gs_val_list = self.get_grayscale_data()
+        self.gs_state = self.get_line_status()
 
     ######## CAMERA ########
     @log_on_start(logging.DEBUG, "Starting camera ('esc' to quit)")
@@ -136,3 +136,5 @@ if __name__ == "__main__":
     snsr = Sensor()
     # snsr.stream_camera()
     snsr.get_distance()
+    snsr.sense_line()
+    print(snsr.gs_val_list, snsr.sonar_distance)
