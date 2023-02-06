@@ -1,3 +1,4 @@
+
 import time
 import numpy as np
 import cv2
@@ -92,9 +93,9 @@ class Sensor(object):
 
             for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
                 img = frame.array
-                img_2 = self.camera_processing(img)
-                cv2.imshow("raw", img)
-                cv2.imshow("mask", img_2)
+                img_1, img_2 = self.camera_processing(img)
+                cv2.imshow("mask", img_1)
+                cv2.imshow("lines", img_2)
                 rawCapture.truncate(0)   # Release cache
             
                 k = cv2.waitKey(1) & 0xFF
@@ -192,12 +193,12 @@ class Sensor(object):
         line_segments = self.detect_line_segments(cropped_edges)
         lane_lines = self.fit_line(img, line_segments)
         lane_lines_image = self.display_lines(img, lane_lines)
-        return lane_lines_image
+        return cropped_edges, lane_lines_image
 
 
 if __name__ == "__main__":
     snsr = Sensor()
-    # snsr.stream_camera()
-    snsr.get_distance()
-    snsr.sense_line()
-    print(snsr.gs_val_list, snsr.sonar_distance)
+    snsr.stream_camera()
+    #snsr.get_distance()
+    #snsr.sense_line()
+    #print(snsr.gs_val_list, snsr.sonar_distance)
