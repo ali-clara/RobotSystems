@@ -132,6 +132,7 @@ class Sensor(object):
         line_segments = cv2.HoughLinesP(cropped_edges, rho, angle, min_threshold, 
                                     np.array([]), min_line_length, max_line_gap)
 
+        logging.info('line_segments: %s' %line_segments)
         return line_segments
 
     def make_points(self, frame, line):
