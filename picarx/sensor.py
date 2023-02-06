@@ -121,6 +121,65 @@ class Sensor(object):
         cv2.fillPoly(mask, polygon, 255)
         cropped_edges = cv2.bitwise_and(edges, mask)
         return cropped_edges
+
+    def detect_line_segments(self, cropped_edges):
+    # tuning min_threshold, minLineLength, maxLineGap is a trial and error process by hand
+        rho = 1  # distance precision in pixels
+        angle = np.deg2rad(1)  # angular precision in radians, i.e. 1 degree
+        min_threshold = 10 
+        min_line_length = 8
+        max_line_gap = 4
+        line_segments = cv2.HoughLinesP(cropped_edges, rho, angle, min_threshold, 
+                                    np.array([]), min_line_length, max_line_gap)
+
+        return line_segments
+
+    def make_points(self, frame, line):
+        """Takes a slope and intercept, returns the endpoints of the line segment"""
+        height, width, _ = frame.shape
+        slope, intercept = line
+        y1 = height  # bottom of the frame
+        y2 = int(y1 / 2)  # make points from middle of the frame down
+
+        # bound the coordinates within the frame
+        x1 = max(-width, min(2 * width, int((y1 - intercept) / slope)))
+        x2 = max(-width, min(2 * width, int((y2 - intercept) / slope)))
+        return [[x1, y1, x2, y2]]
+    
+    def fit_line(self, frame, line_segments):
+        """Combines line segments into lane lines"""
+        line_fit = []
+        lane_lines = []
+        if line_segments is None:
+            logging.info('No line_segment segments detected')
+            return lane_lines
+    
+        for line_segment in line_segments:
+            for x1, y1, x2, y2 in line_segment:
+                if x1 == x2:
+                    logging.info('skipping vertical line segment (slope=inf): %s' % line_segment)
+                    continue
+                fit = np.polyfit((x1, x2), (y1, y2), 1)
+                slope = fit[0]
+                intercept = fit[1]
+                line_fit.append((slope, intercept))
+
+        line_fit_average = np.average(line_fit, axis=0)
+        if len(line_fit) > 0:
+            lane_lines.append(self.make_points(frame, line_fit_average))
+
+        logging.debug('lane lines: %s' % lane_lines)  # [[[316, 720, 484, 432]], [[1009, 720, 718, 432]]]
+        return lane_lines
+    
+    def display_lines(self, frame, lines, line_color=(0, 255, 0), line_width=2):
+        line_image = np.zeros_like(frame)
+        if lines is not None:
+            for line in lines:
+                for x1, y1, x2, y2 in line:
+                    cv2.line(line_image, (x1, y1), (x2, y2), line_color, line_width)
+        line_image = cv2.addWeighted(frame, 0.8, line_image, 1, 1)
+        return line_image
+
     
     def camera_processing(self, img):
         """Takes in frame from Pi camera and applies masking and edge detection"""
@@ -130,7 +189,11 @@ class Sensor(object):
         mask = cv2.inRange(hsv, lower_blue, upper_blue)
         edges = cv2.Canny(mask, 200, 400)
         cropped_edges = self.region_of_interest(edges)
-        return cropped_edges
+        line_segments = self.detect_line_segments(cropped_edges)
+        lane_lines = self.fit_line(img, line_segments)
+        lane_lines_image = self.display_lines(img, lane_lines)
+        return lane_lines_image
+
 
 if __name__ == "__main__":
     snsr = Sensor()
