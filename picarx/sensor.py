@@ -127,13 +127,13 @@ class Sensor(object):
     # tuning min_threshold, minLineLength, maxLineGap is a trial and error process by hand
         rho = 1  # distance precision in pixels
         angle = np.deg2rad(1)  # angular precision in radians, i.e. 1 degree
-        min_threshold = 10 
-        min_line_length = 8
-        max_line_gap = 4
+        min_threshold = 15 
+        min_line_length = 80
+        max_line_gap = 10
         line_segments = cv2.HoughLinesP(cropped_edges, rho, angle, min_threshold, 
                                     np.array([]), min_line_length, max_line_gap)
 
-        logging.info('line_segments: %s' %line_segments)
+        logging.info('line_segments: %s' % line_segments)
         return line_segments
 
     def make_points(self, frame, line):
