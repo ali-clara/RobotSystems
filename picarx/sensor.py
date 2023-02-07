@@ -99,6 +99,7 @@ class Sensor(object):
             for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
                 # capture and process image
                 img = frame.array
+                cv2.imshow("raw", img)
                 self.cv.raw_frame = img
                 line_coords, line_img = self.cv.camera_processing()
                 self.cam_val = line_coords
