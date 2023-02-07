@@ -34,6 +34,8 @@ class Sensor(object):
         tring, echo= ultrasonic_pins
         self.ultrasonic = Ultrasonic(Pin(tring), Pin(echo))
         self.sonar_distance = None
+        # camera init
+        self.cam_val = None
 
     def grayscale_producer(self, gs_bus, delay):
         """Writes data from grayscale sensors to gs_bus.
@@ -133,7 +135,7 @@ class Sensor(object):
         line_segments = cv2.HoughLinesP(cropped_edges, rho, angle, min_threshold, 
                                     np.array([]), min_line_length, max_line_gap)
 
-        logging.info('line_segments: %s' %line_segments)
+        logging.info('line_segments: %s' % line_segments)
         return line_segments
 
     def make_points(self, frame, line):
@@ -192,9 +194,10 @@ class Sensor(object):
         edges = cv2.Canny(mask, 200, 400)
         cropped_edges = self.region_of_interest(edges)
         line_segments = self.detect_line_segments(cropped_edges)
-        lane_lines = self.fit_line(img, line_segments)
-        lane_lines_image = self.display_lines(img, lane_lines)
-        return cropped_edges, lane_lines_image
+        lane_line = self.fit_line(img, line_segments)
+        lane_line_image = self.display_lines(img, lane_line)
+        self.cam_val = lane_line
+        return cropped_edges, lane_line_image
 
 
 if __name__ == "__main__":
