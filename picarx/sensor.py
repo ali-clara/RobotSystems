@@ -1,4 +1,3 @@
-
 import time
 import numpy as np
 import cv2
@@ -21,6 +20,7 @@ logging.basicConfig(format=logging_format, level=logging.INFO, datefmt ="%H:%M:%
 logging.getLogger().setLevel(logging.DEBUG)
 
 class Sensor(object):
+    """Class to read and publish sensor data. Includes ultrasonic, grayscale (light), and camera"""
     def __init__(self,
                 grayscale_pins:list=['A0', 'A1', 'A2'],
                 ultrasonic_pins:list=['D2','D3']):
@@ -36,6 +36,7 @@ class Sensor(object):
         self.sonar_distance = None
         # camera init
         self.cam_val = None
+        self.cv = ComputerVis()
 
     def grayscale_producer(self, gs_bus, delay):
         """Writes data from grayscale sensors to gs_bus.
@@ -57,6 +58,8 @@ class Sensor(object):
         """Writes camera data to camera_bus
             Args - camera_bus (Bus() object), delay (time delay, sec)
             Message: not sure yet. Either raw camera frame or line coordinates"""
+        self.stream_camera()
+        camera_bus.write(self.cam_val)
         time.sleep(delay)
 
     ######## SONAR ########
@@ -94,10 +97,13 @@ class Sensor(object):
             time.sleep(2)
 
             for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+                # capture and process image
                 img = frame.array
-                img_1, img_2 = self.camera_processing(img)
-                cv2.imshow("mask", img_1)
-                cv2.imshow("lines", img_2)
+                self.cv.raw_frame = img
+                line_coords, line_img = self.cv.camera_processing
+                self.cam_val = line_coords
+                # display camera feed with line overlay
+                cv2.imshow("lines", line_img)
                 rawCapture.truncate(0)   # Release cache
             
                 k = cv2.waitKey(1) & 0xFF
@@ -108,10 +114,28 @@ class Sensor(object):
             cv2.destroyAllWindows()
             camera.close()  
 
-    def region_of_interest(self, edges):
-        """Crops image to bottom half of screen"""
-        height, width = edges.shape
-        mask = np.zeros_like(edges)
+class ComputerVis():
+    """Helper class that processes camera data"""
+    def __init__(self):
+        self.raw_frame = None
+
+    def create_mask(self):
+        """Creates mask in desired color range (blue masking tape)"""
+        hsv = cv2.cvtColor(self.raw_frame, cv2.COLOR_BGR2HSV)
+        lower_blue = np.array([60, 40, 40])
+        upper_blue = np.array([150, 255, 255])
+        mask = cv2.inRange(hsv, lower_blue, upper_blue)
+        return mask
+    
+    def detect_edges(self, frame):
+        """Applies canny edge detection to isolate edges of frame"""
+        edges = cv2.Canny(frame, 200, 400)
+        return edges
+
+    def region_of_interest(self, frame):
+        """Crops frame to bottom half only to remove non-line camera noise"""
+        height, width = frame.shape
+        mask = np.zeros_like(frame)
 
         # only focus bottom half of the screen
         polygon = np.array([[
@@ -122,25 +146,25 @@ class Sensor(object):
         ]], np.int32)
 
         cv2.fillPoly(mask, polygon, 255)
-        cropped_edges = cv2.bitwise_and(edges, mask)
-        return cropped_edges
+        cropped_frame = cv2.bitwise_and(frame, mask)
+        return cropped_frame
 
-    def detect_line_segments(self, cropped_edges):
-    # tuning min_threshold, minLineLength, maxLineGap is a trial and error process by hand
+    def detect_line_segments(frame):
+        """Uses probabalistic Hough Transform to detect lines in image
+            Returns - List of [x1, y1, x2, y2] line segment values"""
+        # set params for hough transform (hand-tuned)
         rho = 1  # distance precision in pixels
         angle = np.deg2rad(1)  # angular precision in radians, i.e. 1 degree
         min_threshold = 15 
         min_line_length = 80
         max_line_gap = 10
-        line_segments = cv2.HoughLinesP(cropped_edges, rho, angle, min_threshold, 
+        line_segments = cv2.HoughLinesP(frame, rho, angle, min_threshold, 
                                     np.array([]), min_line_length, max_line_gap)
-
-        logging.info('line_segments: %s' % line_segments)
         return line_segments
 
-    def make_points(self, frame, line):
+    def make_points(self, line):
         """Takes a slope and intercept, returns the endpoints of the line segment"""
-        height, width, _ = frame.shape
+        height, width, _ = self.raw_frame.shape
         slope, intercept = line
         y1 = height  # bottom of the frame
         y2 = int(y1 / 2)  # make points from middle of the frame down
@@ -149,15 +173,17 @@ class Sensor(object):
         x1 = max(-width, min(2 * width, int((y1 - intercept) / slope)))
         x2 = max(-width, min(2 * width, int((y2 - intercept) / slope)))
         return [[x1, y1, x2, y2]]
-    
-    def fit_line(self, frame, line_segments):
-        """Combines line segments into lane lines"""
+
+    @log_on_end(logging.DEBUG, "Lane line: {lane_line}")
+    def fit_line(self, line_segments):
+        """Combines line segments into lane lines
+            Returns - List of [x1, y1, x2, y2] lane line values"""
         line_fit = []
-        lane_lines = []
+        lane_line = []
         if line_segments is None:
             logging.info('No line_segment segments detected')
-            return lane_lines
-    
+            return lane_line
+
         for line_segment in line_segments:
             for x1, y1, x2, y2 in line_segment:
                 if x1 == x2:
@@ -170,35 +196,32 @@ class Sensor(object):
 
         line_fit_average = np.average(line_fit, axis=0)
         if len(line_fit) > 0:
-            lane_lines.append(self.make_points(frame, line_fit_average))
+            lane_line.append(self.make_points(line_fit_average))
 
-        logging.debug('lane lines: %s' % lane_lines)  # [[[316, 720, 484, 432]], [[1009, 720, 718, 432]]]
-        return lane_lines
-    
-    def display_lines(self, frame, lines, line_color=(0, 255, 0), line_width=2):
-        line_image = np.zeros_like(frame)
+        return lane_line
+
+    def display_lines(self, lines, line_color=(0, 255, 0), line_width=2):
+        """Adds the detected line on top of the raw video"""
+        line_image = np.zeros_like(self.raw_frame)
         if lines is not None:
             for line in lines:
                 for x1, y1, x2, y2 in line:
                     cv2.line(line_image, (x1, y1), (x2, y2), line_color, line_width)
-        line_image = cv2.addWeighted(frame, 0.8, line_image, 1, 1)
+        line_image = cv2.addWeighted(self.raw_frame, 0.8, line_image, 1, 1)
         return line_image
 
-    
-    def camera_processing(self, img):
-        """Takes in frame from Pi camera and applies masking and edge detection"""
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        lower_blue = np.array([60, 40, 40])
-        upper_blue = np.array([150, 255, 255])
-        mask = cv2.inRange(hsv, lower_blue, upper_blue)
-        edges = cv2.Canny(mask, 200, 400)
+    def camera_processing(self):
+        """Takes in frame from Pi camera and applies transformations to
+            detect a painters-tape blue line
+            Returns - [x1, y1, x2, y2] coordinates of line, original frame with
+                detected line overlayed"""
+        mask = self.create_mask()
+        edges = self.detect_edges(mask)
         cropped_edges = self.region_of_interest(edges)
         line_segments = self.detect_line_segments(cropped_edges)
-        lane_line = self.fit_line(img, line_segments)
-        lane_line_image = self.display_lines(img, lane_line)
-        self.cam_val = lane_line
-        return cropped_edges, lane_line_image
-
+        lane_line = self.fit_line(line_segments)
+        lane_line_image = self.display_lines(lane_line)
+        return lane_line, lane_line_image
 
 if __name__ == "__main__":
     snsr = Sensor()
@@ -206,3 +229,5 @@ if __name__ == "__main__":
     #snsr.get_distance()
     #snsr.sense_line()
     #print(snsr.gs_val_list, snsr.sonar_distance)
+
+
