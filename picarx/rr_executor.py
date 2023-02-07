@@ -95,7 +95,7 @@ producer_consumer_list = [read_grayscale,
                             read_camera,
                             process_data,
                             control_car,
-                            print_buses,
+                            #print_buses,
                             termination_timer]
 
 # execute them
