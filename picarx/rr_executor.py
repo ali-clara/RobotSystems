@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import sys
 sys.path.append("C:\\Users\\alicl\\Documents\\GitHub\\RobotSystems\\RossROS")
+sys.path.append("/home/ali_pi/RobotSystems/RossROS")
 
 import rossros as rr
 from sensor import Sensor
