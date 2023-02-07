@@ -88,6 +88,7 @@ class Interpretor(object):
             self.dark_line()
         elif self.polarity == 0:
             self.light_line()
+        return self.gs_rel_position
 
     ####### CAMERA ########
     def camera_processing(self):

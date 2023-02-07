@@ -67,6 +67,7 @@ class Sensor(object):
         """SONAR, returns data from ultrasonic sensors.
             Returns - distance (unit ??)"""
         self.sonar_distance = self.ultrasonic.read()
+        return self.sonar_distance
 
     ######## GRAYSCALE ########
     def set_grayscale_reference(self, value):
@@ -85,6 +86,7 @@ class Sensor(object):
         """GS"""
         self.gs_val_list = self.get_grayscale_data()
         self.gs_state = self.get_line_status()
+        return self.gs_val_list
 
     ######## CAMERA ########
     @log_on_start(logging.DEBUG, "Starting camera ('esc' to quit)")
