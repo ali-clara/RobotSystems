@@ -99,7 +99,7 @@ class Sensor(object):
             for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
                 # capture and process image
                 img = frame.array
-                cv2.imshow("raw", img)
+                #cv2.imshow("raw", img)
                 self.cv.raw_frame = img
                 line_coords, line_img = self.cv.camera_processing()
                 self.cam_val = line_coords
@@ -182,13 +182,13 @@ class ComputerVis():
         line_fit = []
         lane_line = []
         if line_segments is None:
-            logging.info('No line_segment segments detected')
+            #logging.info('No line_segment segments detected')
             return lane_line
 
         for line_segment in line_segments:
             for x1, y1, x2, y2 in line_segment:
                 if x1 == x2:
-                    logging.info('skipping vertical line segment (slope=inf): %s' % line_segment)
+                    #logging.info('skipping vertical line segment (slope=inf): %s' % line_segment)
                     continue
                 fit = np.polyfit((x1, x2), (y1, y2), 1)
                 slope = fit[0]
