@@ -54,7 +54,8 @@ read_camera = rr.Producer(
 
 process_data = rr.ConsumerProducer(
     interpretor.grayscale_processing,
-    (grayscale_bus, sonar_bus, camera_bus),
+    # (grayscale_bus, sonar_bus, camera_bus),
+    grayscale_bus,
     interp_bus,
     default_delay,
     termination_bus,

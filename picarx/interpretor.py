@@ -79,9 +79,11 @@ class Interpretor(object):
     def light_line(self):
         pass
     
-    def grayscale_processing(self):
+    def grayscale_processing(self, gs_val):
         """Calls functions to set self.state and self.gs_rel_position
             depending on the polarity of the line"""
+        if gs_val is not None:
+            self.gs_val_list = gs_val
         if self.polarity == 1:
             self.dark_line()
         elif self.polarity == 0:
