@@ -13,7 +13,7 @@ logging.getLogger().setLevel(logging.DEBUG)
 class Controller(object):
     def __init__(self, steering_offset=30):
         self.steering_offset = steering_offset
-        self.line_offset = None
+        self.line_offset = 0
         self.mtrs = Motors()
 
     def controller_consumer(self, line_interp_bus, sonar_bus, delay):

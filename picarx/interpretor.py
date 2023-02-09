@@ -51,6 +51,9 @@ class Interpretor(object):
         right_val /= self.calibration_param
         middle_val /= self.calibration_param
 
+        print("test")
+        print(left_val, middle_val, right_val)
+
         # if left and middle have similar readings and are OFF the line (needs to turn hard right)
         if np.isclose(left_val, middle_val, atol=similar_threshold) and (left_val - right_val) > different_threshold:
             self.state = "left"
