@@ -46,7 +46,7 @@ read_sonar = rr.Producer(
 )
 
 read_camera = rr.Producer(
-    sensor.stream_camera,
+    sensor.get_line_camera,
     camera_bus,
     0.4,
     termination_bus,

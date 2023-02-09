@@ -118,6 +118,9 @@ class Sensor(object):
             cv2.destroyAllWindows()
             camera.close()  
 
+    def get_line_camera(self):
+        return self.cam_val
+
 class ComputerVis():
     """Helper class that processes camera data"""
     def __init__(self):
