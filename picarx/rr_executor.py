@@ -19,7 +19,7 @@ interpretor = Interpretor()
 controller = Controller()
 
 """Create buses for passing data"""
-grayscale_bus = rr.Bus(0, name = "Grayscale sensor bus")
+grayscale_bus = rr.Bus([0,0,0], name = "Grayscale sensor bus")
 sonar_bus = rr.Bus(0, name = "Sonar sensor bus")
 camera_bus = rr.Bus(0, name = "Camera bus")
 interp_bus = rr.Bus(0, name = "Interpretor bus")
