@@ -82,12 +82,13 @@ class Sensor(object):
         """GS"""
         return str(self.grayscale.get_line_status(self.gs_val_list))
 
+    @log_on_end(logging.WARN, "Raw grayscale: {gs_val_list}")
     def sense_line(self):
         """GS"""
-        self.gs_val_list = self.get_grayscale_data()
+        gs_val_list = self.get_grayscale_data()
         self.gs_state = self.get_line_status()
-        print(self.gs_val_list)
-        return self.gs_val_list
+        self.gs_val_list = gs_val_list
+        return gs_val_list
 
     ######## CAMERA ########
     @log_on_start(logging.DEBUG, "Starting camera ('esc' to quit)")
@@ -233,8 +234,5 @@ class ComputerVis():
 if __name__ == "__main__":
     snsr = Sensor()
     snsr.stream_camera()
-    #snsr.get_distance()
-    #snsr.sense_line()
-    #print(snsr.gs_val_list, snsr.sonar_distance)
 
 

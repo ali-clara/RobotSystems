@@ -1,6 +1,12 @@
 import numpy as np
 import cv2
 import time
+import logging
+from logdecorator import log_on_start , log_on_end , log_on_error
+
+logging_format = "%(asctime)s: %(message)s"
+logging.basicConfig(format=logging_format, level=logging.INFO, datefmt ="%H:%M:%S")
+logging.getLogger().setLevel(logging.DEBUG)
 
 class Interpretor(object):
     def __init__(self, 
@@ -79,6 +85,7 @@ class Interpretor(object):
     def light_line(self):
         pass
     
+    @log_on_end(logging.WARN, "Relative pos to line: {self.gs_rel_position}")
     def grayscale_processing(self, gs_val):
         """Calls functions to set self.state and self.gs_rel_position
             depending on the polarity of the line"""
@@ -88,7 +95,6 @@ class Interpretor(object):
             self.dark_line()
         elif self.polarity == 0:
             self.light_line()
-        print(self.gs_rel_position)
         return self.gs_rel_position
 
     ####### CAMERA ########

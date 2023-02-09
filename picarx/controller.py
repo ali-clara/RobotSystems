@@ -25,10 +25,8 @@ class Controller(object):
         self.line_following()
         time.sleep(delay)
 
+    @log_on_end(logging.WARN, "Line offset: {line_offset}")
     def line_following(self, line_offset):
-        # if line_offset is not None:
-        #     self.line_following = line_offset
-        print(f"line offset: {line_offset}")
         steering_angle = line_offset*self.steering_offset
         self.mtrs.set_dir_servo_angle(steering_angle)
         self.mtrs.forward(20)
