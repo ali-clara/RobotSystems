@@ -39,7 +39,7 @@ class Executor():
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 eGrayscale = executor.submit(self.sensor.grayscale_producer, self.gs_bus, gs_delay)
                 eSonar = executor.submit(self.sensor.sonar_producer, self.sonar_bus, gs_delay)
-                eCamera = executor.submit(self.sensor.camera_producer, self.camera_bus, gs_delay)
+                # eCamera = executor.submit(self.sensor.camera_producer, self.camera_bus, gs_delay)
                 eInterpreter = executor.submit(self.interpretor.line_consumer_producer, self.gs_bus, 
                                                 self.camera_bus, self.line_interp_bus, interp_delay)
                 eController = executor.submit(self.controller.controller_consumer, self.line_interp_bus, 
@@ -47,7 +47,7 @@ class Executor():
 
             eGrayscale.result()
             eSonar.result()
-            eCamera.result()
+            # eCamera.result()
             eInterpreter.result()
             eController.result()
 
