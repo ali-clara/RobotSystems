@@ -88,6 +88,7 @@ class Sensor(object):
         gs_val_list = self.get_grayscale_data()
         self.gs_state = self.get_line_status()
         self.gs_val_list = gs_val_list
+        print(gs_val_list)
         return gs_val_list
 
     ######## CAMERA ########
