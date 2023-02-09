@@ -6,7 +6,7 @@ from logdecorator import log_on_start , log_on_end , log_on_error
 
 logging_format = "%(asctime)s: %(message)s"
 logging.basicConfig(format=logging_format, level=logging.INFO, datefmt ="%H:%M:%S")
-logging.getLogger().setLevel(logging.DEBUG)
+# logging.getLogger().setLevel(logging.DEBUG)
 
 class Interpretor(object):
     def __init__(self, 
