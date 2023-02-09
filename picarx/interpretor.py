@@ -20,7 +20,7 @@ class Interpretor(object):
         self.state = None
         # init greyscale values
         self.gs_rel_position = 0
-        self.gs_val_list = None
+        self.gs_val_list = [0,0,0]
         # init camera values
         self.cam_rel_position = 0
         self.cam_val = None
