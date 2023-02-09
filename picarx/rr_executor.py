@@ -72,7 +72,7 @@ control_car = rr.Consumer(
 )
 
 print_buses = rr.Printer(
-    (grayscale_bus, sonar_bus, camera_bus, interp_bus, control_bus),
+    (sonar_bus, camera_bus, interp_bus, control_bus),
     0.25, # delay between printing cycles
     termination_bus,
     "Print raw and derived data", # name of printer
@@ -81,7 +81,7 @@ print_buses = rr.Printer(
 
 termination_timer = rr.Timer(
     termination_bus, # output data bus
-    3, # duration
+    20, # duration
     0.01, # delay between checking for termination time
     termination_bus, # bus to check for termination signal
     "Termination timer"
@@ -95,7 +95,7 @@ producer_consumer_list = [read_grayscale,
                             read_camera,
                             process_data,
                             control_car,
-                            #print_buses,
+                            print_buses,
                             termination_timer]
 
 # execute them
