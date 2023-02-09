@@ -19,11 +19,11 @@ interpretor = Interpretor()
 controller = Controller()
 
 """Create buses for passing data"""
-grayscale_bus = rr.Bus([0,0,0], name = "Grayscale sensor bus")
-sonar_bus = rr.Bus(0, name = "Sonar sensor bus")
-camera_bus = rr.Bus(0, name = "Camera bus")
-interp_bus = rr.Bus(0, name = "Interpretor bus")
-control_bus = rr.Bus(0, name = "Controller bus")
+grayscale_bus = rr.Bus([0,0,0], "Grayscale sensor bus")
+sonar_bus = rr.Bus(0, "Sonar sensor bus")
+camera_bus = rr.Bus(0, "Camera bus")
+interp_bus = rr.Bus(0, "Interpretor bus")
+control_bus = rr.Bus(0, "Controller bus")
 termination_bus = rr.Bus(0, "Termination bus")
 
 """Wrap signal generation and processing into RossROS objects"""
@@ -95,7 +95,7 @@ producer_consumer_list = [read_grayscale,
                             read_camera,
                             process_data,
                             control_car,
-                            print_buses,
+                            # print_buses,
                             termination_timer]
 
 # execute them

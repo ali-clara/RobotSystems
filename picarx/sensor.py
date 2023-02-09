@@ -82,7 +82,7 @@ class Sensor(object):
         """GS"""
         return str(self.grayscale.get_line_status(self.gs_val_list))
 
-    @log_on_end(logging.WARN, "Raw grayscale: {gs_val_list}")
+    @log_on_end(logging.WARNING, "Raw grayscale: {self.gs_val_list}")
     def sense_line(self):
         """GS"""
         gs_val_list = self.get_grayscale_data()
