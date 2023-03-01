@@ -1,0 +1,8 @@
+prefix=/home/ubuntu/armpi_fpv/devel
+
+Name: armpi_fpv_bringup
+Description: Description of armpi_fpv_bringup
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 
