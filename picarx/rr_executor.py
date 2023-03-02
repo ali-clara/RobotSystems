@@ -81,7 +81,7 @@ print_buses = rr.Printer(
 
 termination_timer = rr.Timer(
     termination_bus, # output data bus
-    10, # duration
+    5, # duration
     0.01, # delay between checking for termination time
     termination_bus, # bus to check for termination signal
     "Termination timer"

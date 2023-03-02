@@ -88,7 +88,6 @@ class Sensor(object):
         gs_val_list = self.get_grayscale_data()
         self.gs_state = self.get_line_status()
         self.gs_val_list = gs_val_list
-        print(gs_val_list)
         return gs_val_list
 
     ######## CAMERA ########
@@ -120,7 +119,9 @@ class Sensor(object):
             cv2.destroyAllWindows()
             camera.close()  
 
+    @log_on_end(logging.DEBUG, "Camera line detection: {self.cam_val}")
     def get_line_camera(self):
+        print(self.cam_val)
         return self.cam_val
 
 class ComputerVis():
