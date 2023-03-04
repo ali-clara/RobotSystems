@@ -38,7 +38,8 @@ x_dis = 500
 y_dis = 0.167
 Z_DIS = 0.2
 z_dis = Z_DIS
-x_pid = PID.PID(P=0.06, I=0.005, D=0)  # pid初始化
+# PID initialization
+x_pid = PID.PID(P=0.06, I=0.005, D=0)
 y_pid = PID.PID(P=0.00001, I=0, D=0)
 z_pid = PID.PID(P=0.00003, I=0, D=0)
 
@@ -50,23 +51,27 @@ range_rgb = {
     'white': (255, 255, 255),
 }
 
-# 找出面积最大的轮廓
-# 参数为要比较的轮廓的列表
+# helper function
+# copied
 def getAreaMaxContour(contours):
+    """Finds the contour with the largest area.
+        Inputs - contours (list of contours to compare)
+        Returns - largest contour, area of largest contour"""
     contour_area_temp = 0
     contour_area_max = 0
     area_max_contour = None
 
-    for c in contours:  # 历遍所有轮廓
-        contour_area_temp = math.fabs(cv2.contourArea(c))  # 计算轮廓面积
+    for c in contours:  # iterate over all contours
+        contour_area_temp = math.fabs(cv2.contourArea(c))  # comptute contour area
         if contour_area_temp > contour_area_max:
             contour_area_max = contour_area_temp
             if contour_area_temp > 10:  # 只有在面积大于300时，最大面积的轮廓才是有效的，以过滤干扰
                 area_max_contour = c
 
-    return area_max_contour, contour_area_max  # 返回最大的轮廓
+    return area_max_contour, contour_area_max  # returns the largest contour
 
-# 初始位置
+# Act function
+# Initial position
 def initMove(delay=True):
     with lock:
         target = ik.setPitchRanges((0, y_dis, Z_DIS), -90, -92, -88)
@@ -76,6 +81,8 @@ def initMove(delay=True):
     if delay:
         rospy.sleep(2)
 
+# resets the RGB value, sets it to black
+# copied
 def turn_off_rgb():
     led = Led()
     led.index = 0
@@ -86,7 +93,8 @@ def turn_off_rgb():
     led.index = 1
     rgb_pub.publish(led)
 
-# 变量重置
+# Variable reset
+# copied
 def reset():
     global x_dis, y_dis, z_dis
     global __target_color
@@ -102,7 +110,8 @@ def reset():
         __target_color = ''
 
 color_range = None
-# app初始化调用
+#app initialization call
+# copied
 def init():
     global color_range 
     
@@ -111,7 +120,10 @@ def init():
     initMove()
     reset()
 
+# Act
+#copied
 def run(img):
+    ## is called by image_callback
     global start_move
     global x_dis, y_dis, z_dis
 
@@ -122,42 +134,48 @@ def run(img):
     cv2.line(img, (int(img_w / 2), int(img_h / 2 - 10)), (int(img_w / 2), int(img_h / 2 + 10)), (0, 255, 255), 2)
 
     frame_resize = cv2.resize(img_copy, size, interpolation=cv2.INTER_NEAREST)
-    frame_lab = cv2.cvtColor(frame_resize, cv2.COLOR_BGR2LAB)  # 将图像转换到LAB空间
+    frame_lab = cv2.cvtColor(frame_resize, cv2.COLOR_BGR2LAB)  # Convert image to LAB space
 
     area_max = 0
     area_max_contour = 0
     
+    # __target_color is set by the user in set_target()
     if __target_color in color_range:
         target_color_range = color_range[__target_color]
-        frame_mask = cv2.inRange(frame_lab, tuple(target_color_range['min']), tuple(target_color_range['max']))  # 对原图像和掩模进行位运算
-        eroded = cv2.erode(frame_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))  # 腐蚀
-        dilated = cv2.dilate(eroded, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))  # 膨胀
-        contours = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2]  # 找出轮廓
-        area_max_contour, area_max = getAreaMaxContour(contours)  # 找出最大轮廓
+        # Perform bitwise operations on original image and mask
+        frame_mask = cv2.inRange(frame_lab, tuple(target_color_range['min']), tuple(target_color_range['max']))
+        eroded = cv2.erode(frame_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
+        dilated = cv2.dilate(eroded, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
+        # find the outline
+        contours = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2] 
+        # find the largest contour
+        area_max_contour, area_max = getAreaMaxContour(contours)
 
-    if area_max > 100:  # 有找到最大面积
-        (center_x, center_y), radius = cv2.minEnclosingCircle(area_max_contour)  # 获取最小外接圆
+    # if we've found the largest area
+    if area_max > 100:  
+        # get the smallest circumscribed circle and draw around the detected object
+        (center_x, center_y), radius = cv2.minEnclosingCircle(area_max_contour)
         center_x = int(Misc.map(center_x, 0, size[0], 0, img_w))
         center_y = int(Misc.map(center_y, 0, size[1], 0, img_h))
         radius = int(Misc.map(radius, 0, size[0], 0, img_w))
         if radius > 100:
             return img
         cv2.circle(img, (int(center_x), int(center_y)), int(radius), range_rgb[__target_color], 2)
-        if start_move:
-            x_pid.SetPoint = img_w / 2.0  # 设定
-            x_pid.update(center_x)  # 当前
-            dx = x_pid.output
-            x_dis += int(dx)  # 输出
 
+        if start_move:
+            x_pid.SetPoint = img_w / 2.0  # set up
+            x_pid.update(center_x)  # current
+            dx = x_pid.output
+            x_dis += int(dx)  # output
             x_dis = 200 if x_dis < 200 else x_dis
             x_dis = 800 if x_dis > 800 else x_dis
 
-            y_pid.SetPoint = 900  # 设定
+            y_pid.SetPoint = 900  # set up
             if abs(area_max - 900) < 50:
                 area_max = 900
-            y_pid.update(area_max)  # 当前
+            y_pid.update(area_max)  # current
             dy = y_pid.output
-            y_dis += dy  # 输出
+            y_dis += dy  # output
             y_dis = 0.12 if y_dis < 0.12 else y_dis
             y_dis = 0.25 if y_dis > 0.25 else y_dis
 
@@ -165,7 +183,6 @@ def run(img):
             z_pid.update(center_y)
             dy = z_pid.output
             z_dis += dy
-
             z_dis = 0.22 if z_dis > 0.22 else z_dis
             z_dis = 0.17 if z_dis < 0.17 else z_dis
 
@@ -176,11 +193,14 @@ def run(img):
                     (3, servo_data['servo3']), (4, servo_data['servo4']), (5, servo_data['servo5']), (6, x_dis)))
     return img
 
+# rospy subscriber
+# copied
 def image_callback(ros_image):
     global lock
     
+    # Convert custom image messages to images
     image = np.ndarray(shape=(ros_image.height, ros_image.width, 3), dtype=np.uint8,
-                       buffer=ros_image.data)  # 将自定义图像消息转化为图像
+                       buffer=ros_image.data)
     cv2_img = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     
     frame = cv2_img.copy()
@@ -188,11 +208,13 @@ def image_callback(ros_image):
     with lock:
         if __isRunning:
             frame_result = run(frame)
+
     rgb_image = cv2.cvtColor(frame_result, cv2.COLOR_BGR2RGB).tostring()
     ros_image.data = rgb_image
     
     image_pub.publish(ros_image)
 
+# copied
 def enter_func(msg):
     global lock
     global image_sub
@@ -208,6 +230,7 @@ def enter_func(msg):
             
     return [True, 'enter']
 
+# copied
 heartbeat_timer = None
 def exit_func(msg):
     global lock
@@ -229,6 +252,8 @@ def exit_func(msg):
         
     return [True, 'exit']
 
+# copied
+# user input
 def start_running():
     global lock
     global __isRunning
@@ -237,6 +262,8 @@ def start_running():
     with lock:
         __isRunning = True
 
+# copied
+# uesr input
 def stop_running():
     global lock
     global __isRunning
@@ -247,6 +274,8 @@ def stop_running():
         reset()
         initMove(delay=False)
 
+# user input
+# copied
 def set_running(msg):
     if msg.data:
         start_running()
@@ -255,7 +284,10 @@ def set_running(msg):
         
     return [True, 'set_running']
 
+# user input
+# copied
 def set_target(msg):
+    """gets user input for color and sets it"""
     global lock
     global __target_color
     
@@ -264,6 +296,7 @@ def set_target(msg):
         __target_color = msg.data
         led = Led()
         led.index = 0
+        # in bgr
         led.rgb.r = range_rgb[__target_color][2]
         led.rgb.g = range_rgb[__target_color][1]
         led.rgb.b = range_rgb[__target_color][0]
@@ -274,6 +307,7 @@ def set_target(msg):
         
     return [True, 'set_target']
 
+# copied
 def heartbeat_srv_cb(msg):
     global heartbeat_timer
 
