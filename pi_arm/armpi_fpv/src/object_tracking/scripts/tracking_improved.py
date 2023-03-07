@@ -26,12 +26,12 @@ class Sense():
     pass
 
 class Think():
-    def __init__(self):
+    def __init__(self, target_color):
         # get LAB range from ros param server
         self.color_range = rospy.get_param('/lab_config_manager/color_range_list', {}) 
 
         # target initialization
-        self.__target_color = ''
+        self.__target_color = target_color
 
         self.frame_size = (320, 240)
 
@@ -42,6 +42,9 @@ class Think():
             'black': (0, 0, 0),
             'white': (255, 255, 255),
             }
+        
+        # initialize services, subscribers, and publishers
+        self.rgb_pub = rospy.Publisher('/sensor/rgb_led', Led, queue_size=1)
 
     def reset_vars(self):
         """Resets the Think() variables"""
@@ -55,9 +58,9 @@ class Think():
         led.rgb.r = 0
         led.rgb.g = 0
         led.rgb.b = 0
-        rgb_pub.publish(led)
+        self.rgb_pub.publish(led)
         led.index = 1
-        rgb_pub.publish(led)
+        self.rgb_pub.publish(led)
 
     def get_max_contour(self, contours):
         """Finds the contour with the largest area.
@@ -81,14 +84,14 @@ class Think():
             get the maximum contour surrounding it"""
         # __target_color is set by the user in set_target()
         if self.__target_color in self.color_range:
-            self.target_color_range = self.color_range[self.__target_color]
+            target_color_range = self.color_range[self.__target_color]
             # Perform bitwise operations on original image and mask
-            frame_mask = cv2.inRange(frame_lab, tuple(self.target_color_range['min']), tuple(self.target_color_range['max']))
+            frame_mask = cv2.inRange(frame_lab, tuple(target_color_range['min']), tuple(target_color_range['max']))
             eroded = cv2.erode(frame_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
             dilated = cv2.dilate(eroded, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
             # find the outline
             contours = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2]
-            area_max_contour, area_max = self.think.get_max_contour(contours)
+            area_max_contour, area_max = self.get_max_contour(contours)
         else:
             area_max_contour = 0
             area_max = 0
@@ -96,8 +99,8 @@ class Think():
         return area_max_contour, area_max
     
     def draw_crosshairs(self, img, img_h, img_w):
-        cv2.line(img, (int(img_w / 2 - 10), int(img_h / 2)), (int(img_w / 2 + 10), int(img_h / 2)), (0, 255, 255), 2)
-        cv2.line(img, (int(img_w / 2), int(img_h / 2 - 10)), (int(img_w / 2), int(img_h / 2 + 10)), (0, 255, 255), 2)
+        cv2.line(img, (int(img_w / 2 - 10), int(img_h / 2)), (int(img_w / 2 + 10), int(img_h / 2)), (0, 0, 255), 2)
+        cv2.line(img, (int(img_w / 2), int(img_h / 2 - 10)), (int(img_w / 2), int(img_h / 2 + 10)), (0, 255, 0), 2)
 
     def draw_circle(self, area_max_contour, img, img_h, img_w):
         """Gets and draws the smallest circumscribed circle around
@@ -119,7 +122,7 @@ class Think():
         return frame_lab
 
 class Act():
-    def __init__(self, lock, is_running):
+    def __init__(self, lock, is_running, think):
         # status initialization
         self.start_move = True
         self.is_running = is_running
@@ -135,15 +138,17 @@ class Act():
         self.y_pid = PID.PID(P=0.00001, I=0, D=0)
         self.z_pid = PID.PID(P=0.00003, I=0, D=0)
 
-        self.think = Think()
+        self.think = think
         self.lock = lock
+        
+        # initialize ROS things
+        self.joints_pub = rospy.Publisher('/servo_controllers/port_id_1/multi_id_pos_dur', MultiRawIdPosDur, queue_size=1)
+        self.image_pub = rospy.Publisher('/object_tracking/image_result', Image, queue_size=1)  # register result image publisher
 
         # initialize arm
         rospy.loginfo("Initialize object tracking")
         self.reset_vars()
         self.init_move()
-
-        ## do I have to initialize joints_pub etc here?
     
     def reset_vars(self):
         """Resets Act() variables"""
@@ -154,7 +159,6 @@ class Act():
             self.x_pid.clear()
             self.y_pid.clear()
             self.z_pid.clear()
-            self.think.reset_vars()
     
     def init_move(self, delay=True):
         """Moves the joints to their initial position"""
@@ -162,7 +166,7 @@ class Act():
             target = self.ik.setPitchRanges((0, self.y_dis, self.z_dis), -90, -92, -88)
             if target:
                 servo_data = target[1]
-                bus_servo_control.set_servos(joints_pub, 1500, ((1, 200), (2, 500), (3, servo_data['servo3']), (4, servo_data['servo4']), (5, servo_data['servo5']),(6, servo_data['servo6'])))
+                bus_servo_control.set_servos(self.joints_pub, 1500, ((1, 200), (2, 500), (3, servo_data['servo3']), (4, servo_data['servo4']), (5, servo_data['servo5']),(6, servo_data['servo6'])))
         if delay:
             rospy.sleep(2)
     
@@ -221,12 +225,12 @@ class Act():
                 target = self.ik.setPitchRanges((0, round(self.y_dis, 4), round(self.z_dis, 4)), -90, -85, -95)
                 if target:
                     servo_data = target[1]
-                    bus_servo_control.set_servos(joints_pub, 20, (
+                    bus_servo_control.set_servos(self.joints_pub, 20, (
                         (3, servo_data['servo3']), (4, servo_data['servo4']), (5, servo_data['servo5']), (6, self.x_dis)))
         return img
     
     def image_callback(self, ros_image):
-        """Callback function for image_sub. Calls run()"""
+        """Callback function for image_pub. Calls run()"""
         # Convert custom image messages to images
         image = np.ndarray(shape=(ros_image.height, ros_image.width, 3), dtype=np.uint8,
                         buffer=ros_image.data)
@@ -240,19 +244,28 @@ class Act():
 
         rgb_image = cv2.cvtColor(frame_result, cv2.COLOR_BGR2RGB).tostring()
         ros_image.data = rgb_image
-        image_pub.publish(ros_image)
+        self.image_pub.publish(ros_image)
 
 class Interface():
-    def __init__(self):
+    def __init__(self, target_color):
         self.lock = RLock()
 
         self.image_sub = None
         self.is_running = False
         self.org_image_sub_ed = False
         self.heartbeat_timer = None
+        
+        self.target_color = target_color
 
-        self.act = Act(self.lock, self.is_running)
-        self.think = Think()
+        self.think = Think(target_color)
+        self.act = Act(self.lock, self.is_running, self.think)
+        
+        # ROS init
+        #self.enter_srv = rospy.Service('/object_tracking/enter', Trigger, self.enter_func)
+        #self.exit_srv = rospy.Service('/object_tracking/exit', Trigger, self.exit_func)
+        #self.running_srv = rospy.Service('/object_tracking/set_running', SetBool, self.set_running)
+        #self.set_target_srv = rospy.Service('/object_tracking/set_target', SetTarget, self.set_target)
+        #self.heartbeat_srv = rospy.Service('/object_tracking/heartbeat', SetBool, self.heartbeat_srv_cb)
 
     def enter_func(self, msg):
         rospy.loginfo("Enter object tracking")
@@ -268,6 +281,7 @@ class Interface():
         rospy.loginfo("Exit object tracking")
         with self.lock:
             self.is_running = False
+            self.act.is_running = False
             self.act.reset_vars()
 
             try:
@@ -284,11 +298,13 @@ class Interface():
         rospy.loginfo("Start running object tracking")
         with self.lock:
             self.is_running = True
+            self.act.is_running = True
 
     def stop_running(self):
         rospy.loginfo("Stop running object tracking")
         with self.lock:
             self.is_running = False
+            self.act.is_running = False
             self.act.reset_vars()
             self.act.init_move(delay=False)
 
@@ -302,19 +318,19 @@ class Interface():
     
     def set_target(self, msg):
         """gets user input for color and sets it"""        
-        rospy.loginfo("%s", msg)
+        rospy.loginfo("Set target %s", msg.data)
         with self.lock:
-            __target_color = msg.data
-            self.think.__target_color = __target_color
+            self.target_color = msg.data
+            self.think.__target_color = self.target_color
             led = Led()
             led.index = 0
             # in bgr
-            led.rgb.r = self.think.range_rgb[__target_color][2]
-            led.rgb.g = self.think.range_rgb[__target_color][1]
-            led.rgb.b = self.think.range_rgb[__target_color][0]
-            rgb_pub.publish(led)
+            led.rgb.r = self.think.range_rgb[self.target_color][2]
+            led.rgb.g = self.think.range_rgb[self.target_color][1]
+            led.rgb.b = self.think.range_rgb[self.target_color][0]
+            self.think.rgb_pub.publish(led)
             led.index = 1
-            rgb_pub.publish(led)
+            self.think.rgb_pub.publish(led)
             rospy.sleep(0.1)
             
         return [True, 'set_target']
@@ -331,24 +347,27 @@ class Interface():
         return rsp
 
 if __name__ == "__main__":
-    interface = Interface()
+    rospy.init_node('object_tracking', anonymous=True)
     
-    joints_pub = rospy.Publisher('/servo_controllers/port_id_1/multi_id_pos_dur', MultiRawIdPosDur, queue_size=1)
-    image_pub = rospy.Publisher('/object_tracking/image_result', Image, queue_size=1)  # register result image publisher
-    rgb_pub = rospy.Publisher('/sensor/rgb_led', Led, queue_size=1)
+    ## set the target color
+    color = 'blue'
+        
+    interface = Interface(color)
+    
+    # ROS init
     enter_srv = rospy.Service('/object_tracking/enter', Trigger, interface.enter_func)
     exit_srv = rospy.Service('/object_tracking/exit', Trigger, interface.exit_func)
     running_srv = rospy.Service('/object_tracking/set_running', SetBool, interface.set_running)
     set_target_srv = rospy.Service('/object_tracking/set_target', SetTarget, interface.set_target)
     heartbeat_srv = rospy.Service('/object_tracking/heartbeat', SetBool, interface.heartbeat_srv_cb)
-
-    debug = False
+    
+    debug = True
     if debug:
         rospy.sleep(0.2)
         interface.enter_func(1)
         
         msg = SetTarget()
-        msg.data = 'blue'
+        msg.data = color
         
         interface.set_target(msg)
         interface.start_running()
