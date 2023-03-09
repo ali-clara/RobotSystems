@@ -23,18 +23,11 @@ from armpi_fpv import bus_servo_control
 lock = RLock()
 
 class Sense():
-    pass
-
-class Think():
     def __init__(self, target_color):
+        # target initialization
         # get LAB range from ros param server
         self.color_range = rospy.get_param('/lab_config_manager/color_range_list', {}) 
-
-        # target initialization
         self.__target_color = target_color
-
-        self.frame_size = (320, 240)
-
         self.range_rgb = {
             'red': (0, 0, 255),
             'blue': (255, 0, 0),
@@ -42,14 +35,15 @@ class Think():
             'black': (0, 0, 0),
             'white': (255, 255, 255),
             }
-        
+        self.frame_size = (320, 240)
+
         # initialize services, subscribers, and publishers
         self.rgb_pub = rospy.Publisher('/sensor/rgb_led', Led, queue_size=1)
 
     def reset_vars(self):
-        """Resets the Think() variables"""
+        """Resets the Sense() variables"""
         self.reset_rgb()
-        self.__target_color = ''
+        # self.__target_color = ''
     
     # resets the RGB value, sets it to black
     def reset_rgb(self):
@@ -109,7 +103,6 @@ class Think():
         center_x = int(Misc.map(center_x, 0, self.frame_size[0], 0, img_w))
         center_y = int(Misc.map(center_y, 0, self.frame_size[1], 0, img_h))
         radius = int(Misc.map(radius, 0, self.frame_size[0], 0, img_w))
-
         if radius <= 100:
             cv2.circle(img, (int(center_x), int(center_y)), int(radius), self.range_rgb[self.__target_color], 2)
 
@@ -122,7 +115,7 @@ class Think():
         return frame_lab
 
 class Act():
-    def __init__(self, lock, is_running, think):
+    def __init__(self, lock, is_running, sense):
         # status initialization
         self.start_move = True
         self.is_running = is_running
@@ -138,7 +131,7 @@ class Act():
         self.y_pid = PID.PID(P=0.00001, I=0, D=0)
         self.z_pid = PID.PID(P=0.00003, I=0, D=0)
 
-        self.think = think
+        self.sense = sense
         self.lock = lock
         
         # initialize ROS things
@@ -151,7 +144,7 @@ class Act():
         self.init_move()
     
     def reset_vars(self):
-        """Resets Act() variables"""
+        """Resets Act() and Sense() variables"""
         with self.lock:
             self.x_dis = 500
             self.y_dis = 0.167
@@ -159,6 +152,7 @@ class Act():
             self.x_pid.clear()
             self.y_pid.clear()
             self.z_pid.clear()
+            self.sense.reset_vars()
     
     def init_move(self, delay=True):
         """Moves the joints to their initial position"""
@@ -202,21 +196,22 @@ class Act():
         """Primary image processing and arm controller. Called by image_callback()"""
         # set up image
         img_h, img_w = img.shape[:2]
-        self.think.draw_crosshairs(img, img_h, img_w)
+        self.sense.draw_crosshairs(img, img_h, img_w)
         img_copy = img.copy()
-        frame_lab = self.think.resize_frame(img_copy)
+        frame_lab = self.sense.resize_frame(img_copy)
         # find contours around detected color
-        area_max_contour, area_max = self.think.find_object_outline(frame_lab)
+        area_max_contour, area_max = self.sense.find_object_outline(frame_lab)
         
         # if we've found the largest area, move to it
         if area_max > 100:  
             # draw a circle around the detected object
-            center_x, center_z, radius = self.think.draw_circle(area_max_contour, img, img_h, img_w)
+            center_x, center_z, radius = self.sense.draw_circle(area_max_contour, img, img_h, img_w)
             
             # if we've detected something too large, disregard
             if radius > 100:
                 return img
             
+            # if we're initialized, move to the target
             if self.start_move:
                 self.set_x_distance(img_w, center_x)
                 self.set_y_distance(area_max)
@@ -257,8 +252,8 @@ class Interface():
         
         self.target_color = target_color
 
-        self.think = Think(target_color)
-        self.act = Act(self.lock, self.is_running, self.think)
+        self.sense = Sense(target_color)
+        self.act = Act(self.lock, self.is_running, self.sense)
         
         # ROS init
         #self.enter_srv = rospy.Service('/object_tracking/enter', Trigger, self.enter_func)
@@ -321,16 +316,16 @@ class Interface():
         rospy.loginfo("Set target %s", msg.data)
         with self.lock:
             self.target_color = msg.data
-            self.think.__target_color = self.target_color
+            self.sense.__target_color = self.target_color
             led = Led()
             led.index = 0
             # in bgr
-            led.rgb.r = self.think.range_rgb[self.target_color][2]
-            led.rgb.g = self.think.range_rgb[self.target_color][1]
-            led.rgb.b = self.think.range_rgb[self.target_color][0]
-            self.think.rgb_pub.publish(led)
+            led.rgb.r = self.sense.range_rgb[self.target_color][2]
+            led.rgb.g = self.sense.range_rgb[self.target_color][1]
+            led.rgb.b = self.sense.range_rgb[self.target_color][0]
+            self.sense.rgb_pub.publish(led)
             led.index = 1
-            self.think.rgb_pub.publish(led)
+            self.sense.rgb_pub.publish(led)
             rospy.sleep(0.1)
             
         return [True, 'set_target']
