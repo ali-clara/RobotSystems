@@ -6,6 +6,7 @@ import math
 import rospy
 import numpy as np
 from threading import RLock, Timer
+from cv_processing import ComputerVis
 
 from std_srvs.srv import *
 from sensor_msgs.msg import Image
@@ -192,6 +193,11 @@ class Act():
         self.z_dis = 0.22 if self.z_dis > 0.22 else self.z_dis
         self.z_dis = 0.17 if self.z_dis < 0.17 else self.z_dis
 
+    def line_detection(self, img):
+        cv = ComputerVis(img)
+        line_segment, line_frame = cv.camera_processing()
+        return line_frame
+    
     def run(self, img):
         """Primary image processing and arm controller. Called by image_callback()"""
         # set up image
@@ -235,7 +241,8 @@ class Act():
         frame_result = frame
         with self.lock:
             if self.is_running:
-                frame_result = self.run(frame)
+                # frame_result = self.run(frame)
+                frame_result = self.line_detection(frame)
 
         rgb_image = cv2.cvtColor(frame_result, cv2.COLOR_BGR2RGB).tostring()
         ros_image.data = rgb_image
@@ -356,8 +363,10 @@ if __name__ == "__main__":
     set_target_srv = rospy.Service('/object_tracking/set_target', SetTarget, interface.set_target)
     heartbeat_srv = rospy.Service('/object_tracking/heartbeat', SetBool, interface.heartbeat_srv_cb)
     
-    debug = True
-    if debug:
+    run_tracking = False
+    run_camera_detection = True
+
+    if run_tracking:
         rospy.sleep(0.2)
         interface.enter_func(1)
         
@@ -366,6 +375,9 @@ if __name__ == "__main__":
         
         interface.set_target(msg)
         interface.start_running()
+
+    elif run_camera_detection:
+        rospy.sleep(0.2)
 
     try:
         rospy.spin()
