@@ -6,7 +6,6 @@ import math
 import rospy
 import numpy as np
 from threading import RLock, Timer
-from cv_processing import ComputerVis
 
 from std_srvs.srv import *
 from sensor_msgs.msg import Image
@@ -22,9 +21,11 @@ from armpi_fpv import Misc
 from armpi_fpv import bus_servo_control
 
 lock = RLock()
+from cv_processing import ComputerVis
+cv = ComputerVis()
 
 class Sense():
-    def __init__(self, target_color):
+    def __init__(self, target_color="blue"):
         # target initialization
         # get LAB range from ros param server
         self.color_range = rospy.get_param('/lab_config_manager/color_range_list', {}) 
@@ -38,7 +39,7 @@ class Sense():
             }
         self.frame_size = (320, 240)
 
-        self.cv = ComputerVis()
+        #self.cv = ComputerVis()
 
         # initialize services, subscribers, and publishers
         self.rgb_pub = rospy.Publisher('/sensor/rgb_led', Led, queue_size=1)
@@ -58,7 +59,19 @@ class Sense():
         self.rgb_pub.publish(led)
         led.index = 1
         self.rgb_pub.publish(led)
-
+        
+    def create_mask(self, raw_frame):
+        """Creates mask in desired color range (blue masking tape)"""
+        hsv = cv2.cvtColor(raw_frame, cv2.COLOR_RGB2HSV)
+        
+        lower_blue = np.array([84, 49, 150])
+        upper_blue = np.array([108, 255, 255])
+        mask = cv2.inRange(hsv, lower_blue, upper_blue)
+        
+        result = cv2.bitwise_and(raw_frame, raw_frame, mask=mask)      
+        mask_display = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+        return mask, result
+    
     def get_max_contour(self, contours):
         """Finds the contour with the largest area.
             Inputs - contours (list of contours to compare)
@@ -115,16 +128,16 @@ class Sense():
         """Find the contours for a box"""
         opened = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((6, 6), np.uint8))  # Opening (morphology)
         closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, np.ones((6, 6), np.uint8))  # Closing (morphology)
-        contours = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2]  # find countour
+        contours = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]  # find countour
         area_max_contour, area_max = self.get_max_contour(contours)  # find the maximum countour
 
         return contours, area_max_contour, area_max
     
-    def get_rectangle_centroid(box):
+    def get_rectangle_centroid(self, box):
         pt1 = box[0]
         pt2 = box[1]
         pt3 = box[2]
-        pt4 = box[4]
+        pt4 = box[3]
 
         center_x = (pt1[0] + pt2[0]) / 2
         center_y = (pt1[1] + pt4[1]) / 2
@@ -148,13 +161,15 @@ class Sense():
         righty = int(((cols - x)*vy/vx) + y)
         point1 = (cols-1, righty)
         point2 = (0, lefty)
-
-        # draw line, rectangle, and text 
-        cv2.line(img, point1, point2, (0,255,0), 2)
-        cv2.drawContours(img, [box], -1, self.range_rgb[self.__target_color], 2)
-        cv2.putText(img, '(' + 'Angle:' + str(angle) + ')', (min(box[0, 0], box[2, 0]), box[2, 1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, self.range_rgb[self.__target_color], 1)
-
+    
+        # find line angle
         angle = math.atan2(point1[1] - point2[1], point1[0] - point2[0]) * 180/np.pi
+
+        # draw line, rectangle, and text
+        color = (255, 0, 0)
+        #cv2.line(img, point1, point2, color, 2)
+        cv2.drawContours(img, [box], -1, color, 2)
+        cv2.putText(img, '(' + 'Angle:' + str(angle) + ')', (min(box[0, 0], box[2, 0]), box[2, 1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 1)
 
         return box, angle, rect_center
 
@@ -169,13 +184,19 @@ class Sense():
         return mapped_angle
     
     def detect_line(self, img):
-        mask = self.cv.camera_processing(img)
+        mask, result = self.create_mask(img)
         rectangle_contours, area_max_contour, area_max = self.find_rectangle_contours(mask)
         box, angle, rect_center = self.get_rectangle_and_angle(img, area_max_contour, rectangle_contours)
-        return angle, rect_center
-
+        return img, angle, rect_center, area_max
+    
 class Act(Sense):
-    def __init__(self, lock, is_running, sense):
+    def __init__(self, lock, is_running):
+        rospy.loginfo("Initialize motor class")
+        
+        # get LAB range from ros param server
+        self.color_range = rospy.get_param('/lab_config_manager/color_range_list', {}) 
+        self.frame_size = (320, 240)
+        
         # status initialization
         self.start_move = True
         self.is_running = is_running
@@ -191,20 +212,21 @@ class Act(Sense):
         self.y_pid = PID.PID(P=0.00001, I=0, D=0)
         self.z_pid = PID.PID(P=0.00003, I=0, D=0)
 
-        self.sense = sense
+        #self.sense = sense
         self.lock = lock
         
         # initialize ROS things
         self.joints_pub = rospy.Publisher('/servo_controllers/port_id_1/multi_id_pos_dur', MultiRawIdPosDur, queue_size=1)
         self.image_pub = rospy.Publisher('/object_tracking/image_result', Image, queue_size=1)  # register result image publisher
-
+        self.rgb_pub = rospy.Publisher('/sensor/rgb_led', Led, queue_size=1)
+        
         # initialize arm
         rospy.loginfo("Initialize object tracking")
         self.reset_vars()
         self.init_move()
     
     def reset_vars(self):
-        """Resets Act() and Sense() variables"""
+        """Resets Act() variables"""
         with self.lock:
             self.x_dis = 500
             self.y_dis = 0.167
@@ -212,7 +234,6 @@ class Act(Sense):
             self.x_pid.clear()
             self.y_pid.clear()
             self.z_pid.clear()
-            self.sense.reset_vars()
     
     def init_move(self, delay=True):
         """Moves the joints to their initial position"""
@@ -220,7 +241,6 @@ class Act(Sense):
             target = self.ik.setPitchRanges((0, self.y_dis, self.z_dis), -90, -92, -88)
             if target:
                 servo_data = target[1]
-                # set_servos(publisher, time_to_execute, (joint, joint_value), (joint, joint_value))
                 bus_servo_control.set_servos(self.joints_pub, 1500, ((1, 200), (2, 500), (3, servo_data['servo3']), (4, servo_data['servo4']), (5, servo_data['servo5']),(6, servo_data['servo6'])))
         if delay:
             rospy.sleep(2)
@@ -253,14 +273,6 @@ class Act(Sense):
         self.z_dis = 0.22 if self.z_dis > 0.22 else self.z_dis
         self.z_dis = 0.17 if self.z_dis < 0.17 else self.z_dis
 
-    def line_detection(self, img):
-        cv = ComputerVis(img)
-        mask, result = cv.camera_processing()
-        return img
-    
-    def get_wrist_angle(self, img):
-        return self.think.detect_line(img)
-    
     def run(self, img):
         """Primary image processing and arm controller. Called by image_callback()"""
         # set up image
@@ -269,22 +281,27 @@ class Act(Sense):
         img_copy = img.copy()
         frame_lab = self.resize_frame(img_copy)
         # find contours around detected color
-        area_max_contour, area_max = self.find_object_outline(frame_lab)
+        #area_max_contour, area_max = self.find_object_outline(frame_lab)
+        
+        # detect rectangular bounding box
+        _, _, _, area_max = self.detect_line(img)
+        
+        print(area_max)
         
         # if we've found the largest area, move to it
-        if area_max > 100:  
+        if area_max > 1000:  
             # draw a circle around the detected object
-            # center_x, center_z, radius = self.sense.draw_circle(area_max_contour, img, img_h, img_w)
-            angle, rect_center = self.detect_line(img)
+            #center_x, center_z, radius = self.draw_circle(area_max_contour, img, img_h, img_w)
+            
+            img, angle, rect_center, _ = self.detect_line(img)
 
             center_x = rect_center[0]
             center_z = rect_center[1]
             
             # if we've detected something too large, disregard
-            # if radius > 100:
-            #     return img
+            #if radius > 100:
+                #return img
             
-            # if we're initialized, move to the target
             if self.start_move:
                 self.set_x_distance(img_w, center_x)
                 self.set_y_distance(area_max)
@@ -293,13 +310,12 @@ class Act(Sense):
                 target = self.ik.setPitchRanges((0, round(self.y_dis, 4), round(self.z_dis, 4)), -90, -85, -95)
                 if target:
                     servo_data = target[1]
-                    print(target)
-                    bus_servo_control.set_servos(self.joints_pub, 
-                                                 20, 
-                                                 ((2, self.angle_mapping(-angle))
-                                                  (3, servo_data['servo3']), 
-                                                  (4, servo_data['servo4']), 
-                                                  (5, servo_data['servo5']), 
+                    bus_servo_control.set_servos(self.joints_pub,
+                                                 20,
+                                                 ((2, self.angle_mapping(angle)),
+                                                  (3, servo_data['servo3']),
+                                                  (4, servo_data['servo4']),
+                                                  (5, servo_data['servo5']),
                                                   (6, self.x_dis)))
         return img
     
@@ -309,20 +325,23 @@ class Act(Sense):
         image = np.ndarray(shape=(ros_image.height, ros_image.width, 3), dtype=np.uint8,
                         buffer=ros_image.data)
         
-        bgr_img = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        frame = bgr_img.copy()
+        #bgr_img = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        frame = image.copy()
         frame_result = frame
         with self.lock:
             if self.is_running:
-                # frame_result = self.run(frame)
-                frame_result = self.line_detection(frame)
+                frame_result = self.run(frame)
+                #frame_result, _, _ = self.detect_line(frame)
 
-        rgb_image = cv2.cvtColor(frame_result, cv2.COLOR_BGR2RGB).tostring()
-        ros_image.data = rgb_image
+        #rgb_image = cv2.cvtColor(frame_result, cv2.COLOR_BGR2RGB).tostring()
+        image = frame_result.tostring()
+        ros_image.data = image
         self.image_pub.publish(ros_image)
 
 class Interface():
     def __init__(self, target_color):
+        rospy.loginfo("Initializing ROS communication")
+        
         self.lock = RLock()
 
         self.image_sub = None
@@ -333,7 +352,7 @@ class Interface():
         self.target_color = target_color
 
         self.sense = Sense(target_color)
-        self.act = Act(self.lock, self.is_running, self.sense)
+        self.act = Act(self.lock, self.is_running)
         
         # ROS init
         #self.enter_srv = rospy.Service('/object_tracking/enter', Trigger, self.enter_func)
@@ -425,7 +444,7 @@ if __name__ == "__main__":
     rospy.init_node('object_tracking', anonymous=True)
     
     ## set the target color
-    color = 'blue'
+    color = 'white'
         
     interface = Interface(color)
     
@@ -436,10 +455,8 @@ if __name__ == "__main__":
     set_target_srv = rospy.Service('/object_tracking/set_target', SetTarget, interface.set_target)
     heartbeat_srv = rospy.Service('/object_tracking/heartbeat', SetBool, interface.heartbeat_srv_cb)
     
-    run_tracking = False
-    run_camera_detection = True
-
-    if run_tracking:
+    debug = True
+    if debug:
         rospy.sleep(0.2)
         interface.enter_func(1)
         
@@ -448,9 +465,6 @@ if __name__ == "__main__":
         
         interface.set_target(msg)
         interface.start_running()
-
-    elif run_camera_detection:
-        rospy.sleep(0.2)
 
     try:
         rospy.spin()
